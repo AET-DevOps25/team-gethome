@@ -1,13 +1,13 @@
-package com.gethome.gethome;
+package com.example.gethome.emergency;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class GethomeApplication {
+public class EmergencyApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(GethomeApplication.class, args);
+		SpringApplication.run(EmergencyApplication.class, args);
 	}
 
 }
