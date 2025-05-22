@@ -1,13 +1,13 @@
-package com.example.usermanagemt_service;
+package com.example.usermanagement_service;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class UsermanagemtServiceApplication {
+public class UsermanagementServiceApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(UsermanagemtServiceApplication.class, args);
+		SpringApplication.run(UsermanagementServiceApplication.class, args);
 	}
 
 }
