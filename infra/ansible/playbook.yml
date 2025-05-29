@@ -1,0 +1,24 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: Install Docker
+      yum:
+        name: docker
+        state: present
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Copy project files
+      copy:
+        src: ../../
+        dest: /home/ec2-user/app/
+        mode: 0755
+
+    - name: Build and start Docker containers
+      shell: |
+        cd /home/ec2-user/app/
+        docker compose up -d --build

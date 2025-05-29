@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: routing-service
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: routing-service
+  template:
+    metadata:
+      labels:
+        app: routing-service
+    spec:
+      containers:
+        - name: routing-service
+          image: {{ .Values.services.routing-service.image }}
+          ports:
+            - containerPort: {{ .Values.services.routing-service.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: routing-service
+spec:
+  selector:
+    app: routing-service
+  ports:
+    - port: 80
+      targetPort: {{ .Values.services.routing-service.port }}

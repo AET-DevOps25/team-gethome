@@ -1,0 +1,4 @@
+apiVersion: v2
+name: gethome-app
+description: Helm chart for your full-stack app
+version: 0.1.0

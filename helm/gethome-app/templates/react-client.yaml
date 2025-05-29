@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: react-client
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: react-client
+  template:
+    metadata:
+      labels:
+        app: react-client
+    spec:
+      containers:
+        - name: react-client
+          image: {{ .Values.services.react-client.image }}
+          ports:
+            - containerPort: {{ .Values.services.react-client.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: react-client
+spec:
+  selector:
+    app: react-client
+  ports:
+    - port: 80
+      targetPort: {{ .Values.services.react-client.port }}
