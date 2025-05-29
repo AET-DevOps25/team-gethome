@@ -1,0 +1,26 @@
+replicaCount: 1
+
+mongo:
+  image: mongo:6
+  username: root
+  password: example
+
+services:
+  ai-service:
+    image: your-dockerhub/ai-service
+    port: 80
+  auth-service:
+    image: your-dockerhub/auth-service
+    port: 8080
+  emergency-service:
+    image: your-dockerhub/emergency-service
+    port: 8080
+  routing-service:
+    image: your-dockerhub/routing-service
+    port: 8080
+  usermanagement-service:
+    image: your-dockerhub/usermanagement-service
+    port: 8080
+  react-client:
+    image: your-dockerhub/react-client
+    port: 80
