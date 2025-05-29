@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: emergency-service
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: emergency-service
+  template:
+    metadata:
+      labels:
+        app: emergency-service
+    spec:
+      containers:
+        - name: emergency-service
+          image: {{ .Values.services.emergency-service.image }}
+          ports:
+            - containerPort: {{ .Values.services.emergency-service.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: emergency-service
+spec:
+  selector:
+    app: emergency-service
+  ports:
+    - port: 80
+      targetPort: {{ .Values.services.emergency-service.port }}
