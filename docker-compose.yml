@@ -5,10 +5,10 @@ services:
       - "3000:80"
     depends_on:
       - ai-service
-      - emergency-service
+      - message-service
 
-  emergency-service:
-    build: ./service/emergency-service
+  message-service:
+    build: ./service/message-service
     ports:
       - "8081:8080"
     environment:
