@@ -2,7 +2,7 @@
 |-----|---------------------------------|--------------------------------------------------------------------------|----------|---------|
 | 1   | Map Display & Geolocation       | Integrate map (e.g., Google Maps) on React, fetch user position.         | High     | Feature |
 | 2   | Safe Route Calculation          | Implement route planning logic avoiding tagged unsafe areas.             | High     | Feature |
-| 3   | Emergency Service Workflow      | Implement emergency button, notification dispatch to emergency contacts. | High     | Feature |
+| 3   | Message Service Workflow      | Implement emergency button, notification dispatch to emergency contacts. | High     | Feature |
 | 4   | Database Schema Design          | Define tables for users, tags, routes, events in MongoDB.               | High     | Task    |
 | 5   | Audio Stream & Analysis         | Capture microphone input, stream to AI service for emotion detection.    | Low      | Feature |
 | 6   | User Registration & Login       | Implement signup, login, OAuth-based authentication in Spring Boot.      | Medium   | Feature |

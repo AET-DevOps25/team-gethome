@@ -12,8 +12,8 @@ services:
   auth-service:
     image: your-dockerhub/auth-service
     port: 8080
-  emergency-service:
-    image: your-dockerhub/emergency-service
+  message-service:
+    image: your-dockerhub/message-service
     port: 8080
   routing-service:
     image: your-dockerhub/routing-service

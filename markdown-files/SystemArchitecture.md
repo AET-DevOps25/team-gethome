@@ -11,9 +11,9 @@ The application is split into five microservices, as depicted in the UML Compone
 
 **SafeRouteService (SpringBoot)**: Can be split into two smaller services. The DangerPointService handles the CRUD operations of danger points and makes them available to the RouteService, which calculates a safe route (probably through an external API). 
 
-**EmergencyService (SpringBoot)**: Contacts the emergency contacts, if the AIService or the User detects danger.
+**MessageService (SpringBoot)**: Contacts the emergency contacts, if the AIService or the User detects danger.
 
-**UserService (SpringBoot)**: Safes user information, like preferences when talking to the AI, emergency contacts, ..., which it exposes to the EmergencyService for emergency contacts, or the AI Service for preferences when talking to it.
+**UserService (SpringBoot)**: Safes user information, like preferences when talking to the AI, emergency contacts, ..., which it exposes to the MessageService for emergency contacts, or the AI Service for preferences when talking to it.
 
 **AIService (LangChain)**: Main task is to talk to the user, to accompany them. Optionally a SpeachService handles text to speach and speach to text, to make "phone calls" possible.
 
@@ -25,9 +25,9 @@ How the user interacts with this app to invoke the different microservices can b
 ![UML Use Case diagram](/markdown-files/assets/UseCaseDiagram.svg "UML Use Case diagram")
 
 1. If the viewer plans a route to get home safely the SafeRouteService queries unsafe locations, displays them and plans a safe route
-2. When the user chats with the AI, the Frontend interacts with the AI Service. During the chat, the AI monitors the words and trys to detect an emergency. If it detects one, it calls the EmergencyService.
+2. When the user chats with the AI, the Frontend interacts with the AI Service. During the chat, the AI monitors the words and trys to detect an emergency. If it detects one, it calls the MessageService.
 3. In case the user feels unsafe, he can tag the location as unsafe. This calls the SafeRouteService, to safe the location to the database.
-4. The user does not only need to rely on the AI to sense danger, but can also trigger an emergency themselfes. This directly calls the EmergencyService, which then internally contacts the emergency contacts.
+4. The user does not only need to rely on the AI to sense danger, but can also trigger an emergency themselfes. This directly calls the MessageService, which then internally contacts the emergency contacts.
 
 ### Class diagram
 
