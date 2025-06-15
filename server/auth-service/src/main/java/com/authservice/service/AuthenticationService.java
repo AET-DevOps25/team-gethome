@@ -5,6 +5,7 @@ import com.authservice.model.User;
 import com.authservice.model.Role;
 import com.authservice.model.AuthProvider;
 import com.authservice.repository.UserRepository;
+import com.authservice.security.JwtService;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -137,6 +138,7 @@ public class AuthenticationService {
             .email(user.getEmail())
             .name(user.getName())
             .emailVerified(user.isEmailVerified())
+            .enabled(user.isEnabled())
             .build();
     }
 }

@@ -1,65 +1,104 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import AuthLayout from './components/layouts/AuthLayout';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import theme from './theme';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
-import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from './pages/auth/ResetPasswordPage';
-import VerifyEmailPage from './pages/auth/VerifyEmailPage';
+import ProfileCompletionPage from './pages/user/ProfileCompletionPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
+import HomePage from './pages/home/HomePage';
+import ProfileSettingsPage from './pages/profile/ProfileSettingsPage';
+import { authService } from './services/authService';
+import { userManagementService } from './services/userManagementService';
+import { UserProfile } from './types/user';
+
+const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const isAuthenticated = authService.isAuthenticated();
+    return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
+
+const ProfileCheckRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [loading, setLoading] = useState(true);
+    const [hasProfile, setHasProfile] = useState(false);
+
+    useEffect(() => {
+        const checkProfile = async () => {
+            try {
+                const currentUser = await authService.getCurrentUser();
+                const profile = await userManagementService.getUserProfile(currentUser.id);
+                setHasProfile(!!profile && !!profile.alias && !!profile.gender && !!profile.ageGroup);
+            } catch (error) {
+                console.error('Error checking profile:', error);
+                setHasProfile(false);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (authService.isAuthenticated()) {
+            checkProfile();
+        }
+    }, []);
+
+    if (loading) {
+        return <div>Loading...</div>;
+    }
+
+    return hasProfile ? <>{children}</> : <Navigate to="/profile-completion" />;
+};
 
 const App: React.FC = () => {
-  return (
-    <Router>
-      <Toaster position="top-right" />
-      <Routes>
-        {/* Auth routes */}
-        <Route
-          path="/login"
-          element={
-            <AuthLayout>
-              <LoginPage />
-            </AuthLayout>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <AuthLayout>
-              <RegisterPage />
-            </AuthLayout>
-          }
-        />
-        <Route
-          path="/forgot-password"
-          element={
-            <AuthLayout>
-              <ForgotPasswordPage />
-            </AuthLayout>
-          }
-        />
-        <Route
-          path="/reset-password"
-          element={
-            <AuthLayout>
-              <ResetPasswordPage />
-            </AuthLayout>
-          }
-        />
-        <Route
-          path="/verify-email"
-          element={
-            <AuthLayout>
-              <VerifyEmailPage />
-            </AuthLayout>
-          }
-        />
-
-        {/* Redirect root to login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
-  );
+    return (
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Router>
+                <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route
+                        path="/profile-completion"
+                        element={
+                            <PrivateRoute>
+                                <ProfileCompletionPage />
+                            </PrivateRoute>
+                        }
+                    />
+                    <Route
+                        path="/dashboard"
+                        element={
+                            <PrivateRoute>
+                                <ProfileCheckRoute>
+                                    <DashboardPage />
+                                </ProfileCheckRoute>
+                            </PrivateRoute>
+                        }
+                    />
+                    <Route
+                        path="/home"
+                        element={
+                            <PrivateRoute>
+                                <ProfileCheckRoute>
+                                    <HomePage />
+                                </ProfileCheckRoute>
+                            </PrivateRoute>
+                        }
+                    />
+                    <Route
+                        path="/profile"
+                        element={
+                            <PrivateRoute>
+                                <ProfileCheckRoute>
+                                    <ProfileSettingsPage />
+                                </ProfileCheckRoute>
+                            </PrivateRoute>
+                        }
+                    />
+                    <Route path="/" element={<Navigate to="/home" replace />} />
+                </Routes>
+            </Router>
+        </ThemeProvider>
+    );
 };
 
 export default App; 
