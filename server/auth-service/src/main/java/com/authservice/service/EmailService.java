@@ -1,6 +1,7 @@
 package com.authservice.service;
 
 import com.authservice.model.User;
+import com.authservice.security.JwtService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class EmailService {
     private final TemplateEngine templateEngine;
     private final JwtService jwtService;
 
-    protected void sendEmail(String to, String subject, String content) throws MessagingException {
+    public void sendEmail(String to, String subject, String templateName, Context context) throws MessagingException {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -28,7 +29,9 @@ public class EmailService {
             helper.setFrom("noreply@gethome.com");
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setText(content, true);
+            
+            String htmlContent = templateEngine.process(templateName, context);
+            helper.setText(htmlContent, true);
             
             mailSender.send(message);
             log.info("Email sent successfully to: {}", to);
@@ -47,8 +50,12 @@ public class EmailService {
             context.setVariable("name", user.getName());
             context.setVariable("verificationUrl", verificationUrl);
 
-            String emailContent = templateEngine.process("verification-email", context);
-            sendEmail(user.getEmail(), "Verify your GetHome account", emailContent);
+            sendEmail(
+                user.getEmail(),
+                "Verify your email",
+                "verification-email",
+                context
+            );
         } catch (Exception e) {
             log.error("Failed to send verification email to user: {}", user.getEmail(), e);
             throw new MessagingException("Failed to send verification email", e);
@@ -64,8 +71,12 @@ public class EmailService {
             context.setVariable("name", user.getName());
             context.setVariable("resetUrl", resetUrl);
 
-            String emailContent = templateEngine.process("password-reset-email", context);
-            sendEmail(user.getEmail(), "Reset your GetHome password", emailContent);
+            sendEmail(
+                user.getEmail(),
+                "Reset your password",
+                "password-reset-email",
+                context
+            );
         } catch (Exception e) {
             log.error("Failed to send password reset email to user: {}", user.getEmail(), e);
             throw new MessagingException("Failed to send password reset email", e);
