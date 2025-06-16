@@ -9,29 +9,53 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import com.usermanagement_service.security.JwtService;
+import org.springframework.security.access.AccessDeniedException;
 
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
     private final UserManagementService userManagementService;
+    private final JwtService jwtService;
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @PostMapping
-    public ResponseEntity<UserProfileResponse> createUserProfile(@RequestBody UserCreationRequest request) {
+    public ResponseEntity<UserProfileResponse> createUserProfile(
+            @RequestBody UserCreationRequest request,
+            HttpServletRequest httpRequest) {
+        // Extract token and verify user is creating their own profile
+        String token = httpRequest.getHeader("Authorization").substring(7);
+        String authenticatedUserId = jwtService.extractUserId(token);
+        
+        if (!authenticatedUserId.equals(request.getId())) {
+            throw new AccessDeniedException("You can only create your own profile");
+        }
+        
         logger.info("Received request to create user profile: {}", request);
         try {
-            UserProfileResponse profile = userManagementService.createUserProfile(request);
+            UserProfileResponse response = userManagementService.createUserProfile(request);
             logger.info("User profile created successfully");
-            return ResponseEntity.ok(profile);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Error creating user profile", e);
-            return ResponseEntity.badRequest().build();
+            logger.error("Error creating user profile: {}", e.getMessage());
+            throw e;
         }
     }
 
     @GetMapping("/{userId}/profile")
-    public ResponseEntity<UserProfileResponse> getUserProfile(@PathVariable String userId) {
+    public ResponseEntity<UserProfileResponse> getUserProfile(
+            @PathVariable String userId,
+            HttpServletRequest request) {
+        // Extract token and verify user is accessing their own data
+        String token = request.getHeader("Authorization").substring(7);
+        String authenticatedUserId = jwtService.extractUserId(token);
+        
+        if (!authenticatedUserId.equals(userId)) {
+            throw new AccessDeniedException("You can only access your own profile");
+        }
+        
         logger.info("Received request for user profile with userId: {}", userId);
         try {
             UserProfileResponse profile = userManagementService.getUserProfile(userId);
@@ -46,7 +70,16 @@ public class UserController {
     @PutMapping("/{userId}")
     public ResponseEntity<UserProfileResponse> updateUserProfile(
             @PathVariable String userId,
-            @RequestBody UserUpdateRequest request) {
+            @RequestBody UserUpdateRequest request,
+            HttpServletRequest httpRequest) {
+        // Extract token and verify user is updating their own data
+        String token = httpRequest.getHeader("Authorization").substring(7);
+        String authenticatedUserId = jwtService.extractUserId(token);
+        
+        if (!authenticatedUserId.equals(userId)) {
+            throw new AccessDeniedException("You can only update your own profile");
+        }
+        
         logger.info("Received request to update user profile for userId: {}", userId);
         try {
             UserProfileResponse profile = userManagementService.updateUserProfile(userId, request);
@@ -90,7 +123,16 @@ public class UserController {
 
     @GetMapping("/{userId}/emergency-contacts")
     public ResponseEntity<List<EmergencyContact>> getEmergencyContacts(
-            @PathVariable String userId) {
+            @PathVariable String userId,
+            HttpServletRequest request) {
+        // Extract token and verify user is accessing their own contacts
+        String token = request.getHeader("Authorization").substring(7);
+        String authenticatedUserId = jwtService.extractUserId(token);
+        
+        if (!authenticatedUserId.equals(userId)) {
+            throw new AccessDeniedException("You can only access your own emergency contacts");
+        }
+        
         return ResponseEntity.ok(userManagementService.getEmergencyContacts(userId));
     }
 
@@ -103,7 +145,16 @@ public class UserController {
     @DeleteMapping("/{userId}/emergency-contacts/{contactId}")
     public ResponseEntity<Void> removeEmergencyContact(
             @PathVariable String userId,
-            @PathVariable String contactId) {
+            @PathVariable String contactId,
+            HttpServletRequest request) {
+        // Extract token and verify user is removing their own contact
+        String token = request.getHeader("Authorization").substring(7);
+        String authenticatedUserId = jwtService.extractUserId(token);
+        
+        if (!authenticatedUserId.equals(userId)) {
+            throw new AccessDeniedException("You can only remove contacts from your own profile");
+        }
+        
         userManagementService.removeEmergencyContact(userId, contactId);
         return ResponseEntity.noContent().build();
     }
