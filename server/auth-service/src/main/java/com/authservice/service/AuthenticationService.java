@@ -65,18 +65,18 @@ public class AuthenticationService {
                 request.getPassword()
             )
         );
-
-        User user = userRepository.findByEmail(request.getEmail())
-            .orElseThrow(() -> new RuntimeException("User not found"));
-
-        String token = jwtService.generateToken(user);
-        return buildAuthenticationResponse(user, token);
+        var user = userRepository.findByEmail(request.getEmail())
+            .orElseThrow();
+        var jwtToken = jwtService.generateToken(user);
+        return AuthenticationResponse.builder()
+            .token(jwtToken)
+            .build();
     }
 
     @Transactional
     public void verifyEmail(VerifyEmailRequest request) {
         String token = request.getToken();
-        String email = jwtService.extractUsername(token);
+        String email = jwtService.extractClaim(token, claims -> claims.get("email", String.class));
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -120,7 +120,7 @@ public class AuthenticationService {
     public void resetPassword(ResetPasswordRequest request) {
         String token = request.getToken();
         String newPassword = request.getNewPassword();
-        String email = jwtService.extractUsername(token);
+        String email = jwtService.extractClaim(token, claims -> claims.get("email", String.class));
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -132,13 +132,84 @@ public class AuthenticationService {
         userRepository.save(user);
     }
 
+    public AuthenticationResponse refreshToken(String token) {
+        String userId = jwtService.extractUserId(token);
+        String email = jwtService.extractClaim(token, claims -> claims.get("email", String.class));
+        
+        if (userId == null || email == null) {
+            throw new RuntimeException("Invalid token");
+        }
+
+        var user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+            
+        if (!jwtService.isTokenValid(token, user)) {
+            throw new RuntimeException("Invalid token");
+        }
+
+        var jwtToken = jwtService.generateToken(user);
+        return AuthenticationResponse.builder()
+            .token(jwtToken)
+            .build();
+    }
+
+    public void validateToken(String token) {
+        String userId = jwtService.extractUserId(token);
+        String email = jwtService.extractClaim(token, claims -> claims.get("email", String.class));
+        
+        if (userId == null || email == null) {
+            throw new RuntimeException("Invalid token");
+        }
+
+        var user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+            
+        if (!jwtService.isTokenValid(token, user)) {
+            throw new RuntimeException("Invalid token");
+        }
+    }
+
+    public void verifyEmail(String token) {
+        String userId = jwtService.extractUserId(token);
+        String email = jwtService.extractClaim(token, claims -> claims.get("email", String.class));
+        
+        if (userId == null || email == null) {
+            throw new RuntimeException("Invalid token");
+        }
+
+        var user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+            
+        if (!jwtService.isTokenValid(token, user)) {
+            throw new RuntimeException("Invalid token");
+        }
+
+        user.setEmailVerified(true);
+        userRepository.save(user);
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        String userId = jwtService.extractUserId(token);
+        String email = jwtService.extractClaim(token, claims -> claims.get("email", String.class));
+        
+        if (userId == null || email == null) {
+            throw new RuntimeException("Invalid token");
+        }
+
+        var user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+            
+        if (!jwtService.isTokenValid(token, user)) {
+            throw new RuntimeException("Invalid token");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
     private AuthenticationResponse buildAuthenticationResponse(User user, String token) {
         return AuthenticationResponse.builder()
             .token(token)
-            .email(user.getEmail())
-            .name(user.getName())
-            .emailVerified(user.isEmailVerified())
-            .enabled(user.isEnabled())
             .build();
     }
 }
