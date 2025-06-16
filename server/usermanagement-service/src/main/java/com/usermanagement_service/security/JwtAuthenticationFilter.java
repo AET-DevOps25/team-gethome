@@ -31,7 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
-        final String username;
+        final String userId;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             logger.debug("No Bearer token found in request");
@@ -41,14 +41,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             jwt = authHeader.substring(7);
-            username = jwtService.extractUsername(jwt);
-            logger.debug("Extracted username from token: {}", username);
+            userId = jwtService.extractUserId(jwt);
+            logger.debug("Extracted userId from token: {}", userId);
 
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 if (jwtService.isTokenValid(jwt)) {
                     logger.debug("Token is valid, setting authentication");
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        username,
+                        userId,
                         null,
                         Collections.emptyList()
                     );
