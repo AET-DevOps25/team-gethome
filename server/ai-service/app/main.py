@@ -16,7 +16,7 @@ app = FastAPI()
 # --- CONFIG ---
 JWT_SECRET = os.getenv("JWT_SECRET", "your_jwt_secret")  # Should be set in env
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://usermanagement-service:8080/api/user")
+USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://usermanagement-service:8080/api/user/{user_id}/profile")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-xxx")  # Should be set in env
 
 # --- MODELS ---
@@ -41,11 +41,12 @@ def validate_jwt(token: str) -> dict:
     except JWTError as e:
         raise HTTPException(status_code=401, detail="Invalid JWT token")
 
-def get_user_profile(token: str) -> dict:
+def get_user_profile(token: str, user_id: str) -> dict:
     headers = {"Authorization": f"Bearer {token}"}
+    url = USER_SERVICE_URL.format(user_id=user_id)
     try:
         with httpx.Client() as client:
-            resp = client.get(USER_SERVICE_URL, headers=headers, timeout=5)
+            resp = client.get(url, headers=headers, timeout=5)
             if resp.status_code != 200:
                 raise HTTPException(status_code=resp.status_code, detail="Failed to fetch user profile")
             return resp.json()
@@ -106,7 +107,7 @@ def start_chat_session(Authorization: str = Header(...)):
     if not user_id:
         raise HTTPException(status_code=400, detail="User ID not found in JWT")
     # Fetch user profile
-    profile = get_user_profile(token)
+    profile = get_user_profile(token, user_id)
     # Build system prompt
     system_prompt = build_system_prompt(profile)
     # Create LangChain session
