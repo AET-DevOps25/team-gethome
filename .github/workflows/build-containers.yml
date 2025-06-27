@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth-service, usermanagement-service, emergency-service, routing-service]
+        service: [auth-service, usermanagement-service, message-service, routing-service]
         include:
           - service: auth-service
             context: ./server/auth-service
@@ -42,8 +42,8 @@ jobs:
           - service: usermanagement-service
             context: ./server/usermanagement-service
             dockerfile: Dockerfile
-          - service: emergency-service
-            context: ./server/emergency-service
+          - service: message-service
+            context: ./server/message-service
             dockerfile: Dockerfile
           - service: routing-service
             context: ./server/routing-service
@@ -215,7 +215,7 @@ jobs:
           const summary = `## Container Registry Summary
           
           ### Built Images
-          - **Java Services**: auth-service, usermanagement-service, emergency-service, routing-service
+          - **Java Services**: auth-service, usermanagement-service, message-service, routing-service
           - **AI Service**: ai-service (Python)
           - **Frontend**: react-client
           

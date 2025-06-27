@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth-service, usermanagement-service, emergency-service, routing-service, ai-service, react-client]
+        service: [auth-service, usermanagement-service, message-service, routing-service, ai-service, react-client]
     
     steps:
     - name: Checkout code
@@ -257,7 +257,7 @@ jobs:
           --set services.auth-service.image=ghcr.io/${{ env.IMAGE_NAME }}/auth-service:main \
           --set services.usermanagement-service.image=ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:main \
           --set services.ai-service.image=ghcr.io/${{ env.IMAGE_NAME }}/ai-service:main \
-          --set services.emergency-service.image=ghcr.io/${{ env.IMAGE_NAME }}/emergency-service:main \
+          --set services.message-service.image=ghcr.io/${{ env.IMAGE_NAME }}/message-service:main \
           --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:main \
           --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:main \
           --wait --timeout=10m
@@ -335,7 +335,7 @@ jobs:
           --set services.auth-service.image=ghcr.io/${{ env.IMAGE_NAME }}/auth-service:latest \
           --set services.usermanagement-service.image=ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:latest \
           --set services.ai-service.image=ghcr.io/${{ env.IMAGE_NAME }}/ai-service:latest \
-          --set services.emergency-service.image=ghcr.io/${{ env.IMAGE_NAME }}/emergency-service:latest \
+          --set services.message-service.image=ghcr.io/${{ env.IMAGE_NAME }}/message-service:latest \
           --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest \
           --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest \
           --wait --timeout=15m
@@ -381,7 +381,7 @@ jobs:
           - Auth Service: \`ghcr.io/${{ env.IMAGE_NAME }}/auth-service:latest\`
           - User Management Service: \`ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:latest\`
           - AI Service: \`ghcr.io/${{ env.IMAGE_NAME }}/ai-service:latest\`
-          - Emergency Service: \`ghcr.io/${{ env.IMAGE_NAME }}/emergency-service:latest\`
+          - Emergency Service: \`ghcr.io/${{ env.IMAGE_NAME }}/message-service:latest\`
           - Routing Service: \`ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest\`
           - React Client: \`ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest\`
           

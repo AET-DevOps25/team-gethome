@@ -47,7 +47,7 @@ jobs:
     # Update Java dependencies
     - name: Update Java dependencies
       run: |
-        for service in auth-service usermanagement-service emergency-service routing-service; do
+        for service in auth-service usermanagement-service message-service routing-service; do
           echo "Updating dependencies for $service..."
           cd server/$service
           ./gradlew dependencyUpdates --revision=release
