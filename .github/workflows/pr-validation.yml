@@ -38,6 +38,7 @@ jobs:
         for service in auth-service usermanagement-service message-service routing-service; do
           echo "Linting $service..."
           cd server/$service
+          chmod +x ./gradlew
           ./gradlew spotlessCheck || exit 1
           ./gradlew checkstyleMain || exit 1
           cd ../..
