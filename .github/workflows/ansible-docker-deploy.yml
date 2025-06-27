@@ -6,27 +6,28 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      PUBLIC_DNS: ec2-54-227-141-25.compute-1.amazonaws.com
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up SSH key
+      - name: Set up SSH key, run Ansible playbook, and clean up
         run: |
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > key.pem
-          chmod 600 key.pem
+          # Create SSH key file
+          mkdir -p infra/ansible
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > infra/ansible/key.pem
+          chmod 600 infra/ansible/key.pem
 
-      - name: Create Ansible inventory
-        run: |
+          # Create Ansible inventory file
           echo "[ec2]" > inventory
-          echo "${{ env.PUBLIC_DNS }} ansible_user=ubuntu ansible_ssh_private_key_file=./key.pem ansible_python_interpreter=/usr/bin/python3" >> inventory
+          echo "${{ secrets.PUBLIC_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=infra/ansible/key.pem ansible_python_interpreter=/usr/bin/python3" >> inventory
 
-      - name: Show inventory (debug)
-        run: cat inventory
+          echo "=== Inventory content ==="
+          cat inventory
 
-      - name: Run Ansible Playbook
-        run: |
+          # Run the playbook
           cd infra/ansible
           ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ../../inventory playbook.yml
+
+          # Clean up SSH key file
+          rm -f key.pem
