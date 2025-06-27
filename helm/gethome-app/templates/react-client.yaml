@@ -1,7 +1,12 @@
+{{- if .Values.services.react-client.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: react-client
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: react-client
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -11,20 +16,65 @@ spec:
     metadata:
       labels:
         app: react-client
+        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     spec:
+      {{- if .Values.serviceAccount.enabled }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default "gethome-service-account" }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: react-client
           image: {{ .Values.services.react-client.image }}
+          imagePullPolicy: {{ .Values.services.react-client.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.services.react-client.port }}
+              name: http
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.services.react-client.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.services.react-client.env }}
+          env:
+            {{- range .Values.services.react-client.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.services.react-client.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.services.react-client.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: react-client
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: react-client
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
+  type: {{ .Values.services.react-client.service.type }}
   selector:
     app: react-client
   ports:
-    - port: 80
-      targetPort: {{ .Values.services.react-client.port }}
+    - port: {{ .Values.services.react-client.service.port }}
+      targetPort: {{ .Values.services.react-client.service.targetPort }}
+      protocol: TCP
+      name: http
+{{- end }}

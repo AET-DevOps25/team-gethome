@@ -1,19 +1,31 @@
+{{- if .Values.mongo.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mongo-pvc
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: mongo
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
   accessModes:
     - ReadWriteOnce
+  {{- if .Values.mongo.storage.storageClass }}
+  storageClassName: {{ .Values.mongo.storage.storageClass }}
+  {{- end }}
   resources:
     requests:
-      storage: 1Gi
+      storage: {{ .Values.mongo.storage.size }}
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mongo
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: mongo
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
   replicas: 1
   selector:
@@ -23,20 +35,50 @@ spec:
     metadata:
       labels:
         app: mongo
+        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     spec:
+      {{- if .Values.serviceAccount.enabled }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default "gethome-service-account" }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: mongo
           image: {{ .Values.mongo.image }}
+          imagePullPolicy: {{ .Values.mongo.imagePullPolicy }}
           ports:
             - containerPort: 27017
+              name: mongo
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               value: {{ .Values.mongo.username }}
             - name: MONGO_INITDB_ROOT_PASSWORD
               value: {{ .Values.mongo.password }}
+            - name: MONGO_INITDB_DATABASE
+              value: {{ .Values.mongo.database }}
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.mongo.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: mongo-storage
               mountPath: /data/db
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
         - name: mongo-storage
           persistentVolumeClaim:
@@ -46,8 +88,17 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mongo
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: mongo
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
+  type: {{ .Values.mongo.service.type }}
   selector:
     app: mongo
   ports:
-    - port: 27017
+    - port: {{ .Values.mongo.service.port }}
+      targetPort: 27017
+      protocol: TCP
+      name: mongo
+{{- end }}

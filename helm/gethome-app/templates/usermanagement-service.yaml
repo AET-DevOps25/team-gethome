@@ -1,7 +1,12 @@
+{{- if .Values.services.usermanagement-service.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: usermanagement-service
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: usermanagement-service
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -11,20 +16,65 @@ spec:
     metadata:
       labels:
         app: usermanagement-service
+        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     spec:
+      {{- if .Values.serviceAccount.enabled }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default "gethome-service-account" }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: usermanagement-service
           image: {{ .Values.services.usermanagement-service.image }}
+          imagePullPolicy: {{ .Values.services.usermanagement-service.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.services.usermanagement-service.port }}
+              name: http
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.services.usermanagement-service.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.services.usermanagement-service.env }}
+          env:
+            {{- range .Values.services.usermanagement-service.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.services.usermanagement-service.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: {{ .Values.services.usermanagement-service.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: usermanagement-service
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: usermanagement-service
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
+  type: {{ .Values.services.usermanagement-service.service.type }}
   selector:
     app: usermanagement-service
   ports:
-    - port: 80
-      targetPort: {{ .Values.services.usermanagement-service.port }}
+    - port: {{ .Values.services.usermanagement-service.service.port }}
+      targetPort: {{ .Values.services.usermanagement-service.service.targetPort }}
+      protocol: TCP
+      name: http
+{{- end }}
