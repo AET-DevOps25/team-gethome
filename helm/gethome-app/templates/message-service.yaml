@@ -1,21 +1,21 @@
-{{- if .Values.services.emergency-service.enabled }}
+{{- if .Values.services.message-service.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: emergency-service
+  name: message-service
   namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
   labels:
-    app: emergency-service
+    app: message-service
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: emergency-service
+      app: message-service
   template:
     metadata:
       labels:
-        app: emergency-service
+        app: message-service
         chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     spec:
       {{- if .Values.serviceAccount.enabled }}
@@ -26,23 +26,23 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: emergency-service
-          image: {{ .Values.services.emergency-service.image }}
-          imagePullPolicy: {{ .Values.services.emergency-service.imagePullPolicy }}
+        - name: message-service
+          image: {{ .Values.services.message-service.image }}
+          imagePullPolicy: {{ .Values.services.message-service.imagePullPolicy }}
           ports:
-            - containerPort: {{ .Values.services.emergency-service.port }}
+            - containerPort: {{ .Values.services.message-service.port }}
               name: http
           {{- with .Values.containerSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.services.emergency-service.resources }}
+          {{- with .Values.services.message-service.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.services.emergency-service.env }}
+          {{- if .Values.services.message-service.env }}
           env:
-            {{- range .Values.services.emergency-service.env }}
+            {{- range .Values.services.message-service.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
@@ -50,31 +50,31 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.services.emergency-service.port }}
+              port: {{ .Values.services.message-service.port }}
             initialDelaySeconds: 60
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.services.emergency-service.port }}
+              port: {{ .Values.services.message-service.port }}
             initialDelaySeconds: 30
             periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: emergency-service
+  name: message-service
   namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
   labels:
-    app: emergency-service
+    app: message-service
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
-  type: {{ .Values.services.emergency-service.service.type }}
+  type: {{ .Values.services.message-service.service.type }}
   selector:
-    app: emergency-service
+    app: message-service
   ports:
-    - port: {{ .Values.services.emergency-service.service.port }}
-      targetPort: {{ .Values.services.emergency-service.service.targetPort }}
+    - port: {{ .Values.services.message-service.service.port }}
+      targetPort: {{ .Values.services.message-service.service.targetPort }}
       protocol: TCP
       name: http
 {{- end }}

@@ -35,7 +35,7 @@ jobs:
     # Lint Java services
     - name: Lint Java services
       run: |
-        for service in auth-service usermanagement-service emergency-service routing-service; do
+        for service in auth-service usermanagement-service message-service routing-service; do
           echo "Linting $service..."
           cd server/$service
           ./gradlew spotlessCheck || exit 1
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth-service, usermanagement-service, emergency-service, routing-service, ai-service, react-client]
+        service: [auth-service, usermanagement-service, message-service, routing-service, ai-service, react-client]
     
     steps:
     - name: Checkout code
@@ -173,7 +173,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth-service, usermanagement-service, emergency-service, routing-service, ai-service, react-client]
+        service: [auth-service, usermanagement-service, message-service, routing-service, ai-service, react-client]
     
     steps:
     - name: Checkout code
