@@ -1,10 +1,10 @@
-package com.example.gethome.emergency;
+package com.example.gethome.message;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class EmergencyApplicationTests {
+class MessageApplicationTests {
 
 	@Test
 	void contextLoads() {
