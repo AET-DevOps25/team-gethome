@@ -6,7 +6,7 @@ version: 1.0.0
 appVersion: "1.0.0"
 keywords:
   - microservices
-  - emergency-services
+  - message-services
   - ai
   - authentication
 home: https://github.com/your-org/team-gethome
