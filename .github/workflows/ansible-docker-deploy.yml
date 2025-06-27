@@ -15,8 +15,8 @@ jobs:
         run: |
           # Create SSH key file
           mkdir -p infra/ansible
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > infra/ansible/key.pem
-          chmod 600 infra/ansible/key.pem
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > key.pem
+          chmod 600 key.pem
 
           # Create Ansible inventory file
           echo "[ec2]" > inventory
