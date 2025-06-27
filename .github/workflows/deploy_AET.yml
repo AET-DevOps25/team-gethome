@@ -117,8 +117,8 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./server/${{ matrix.service }}
-        file: ./server/${{ matrix.service }}/Dockerfile
+        context: ${{ matrix.service == 'react-client' && './client' || format('./server/{0}', matrix.service) }}
+        file: ${{ matrix.service == 'react-client' && './client/Dockerfile' || format('./server/{0}/Dockerfile', matrix.service) }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

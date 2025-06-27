@@ -186,7 +186,8 @@ jobs:
     - name: Build Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./server/${{ matrix.service }}
+        context: ${{ matrix.service == 'react-client' && './client' || format('./server/{0}', matrix.service) }}
+        file: ${{ matrix.service == 'react-client' && './client/Dockerfile' || format('./server/{0}/Dockerfile', matrix.service) }}
         push: false
         tags: gethome/${{ matrix.service }}:pr-${{ github.event.number }}
         cache-from: type=gha
