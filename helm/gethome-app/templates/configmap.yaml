@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: "devops25-k8s-gethome"
+data:
+  api_url: https://devops25-k8s-gethome.student.k8s.aet.cit.tum.de/api
