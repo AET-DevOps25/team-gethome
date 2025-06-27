@@ -1,0 +1,257 @@
+name: Deploy GetHome Application
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - production
+      namespace:
+        description: 'Kubernetes namespace'
+        required: false
+        default: 'devops25-k8s-gethome'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Test and Build Services
+  test-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, usermanagement-service, emergency-service, routing-service, ai-service, react-client]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17 (for Java services)
+      if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'react-client'
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up Node.js (for React client)
+      if: matrix.service == 'react-client'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Set up Python (for AI service)
+      if: matrix.service == 'ai-service'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    # Test Java services
+    - name: Test Java services
+      if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'react-client'
+      run: |
+        cd server/${{ matrix.service }}
+        ./gradlew test
+
+    # Test React client
+    - name: Test React client
+      if: matrix.service == 'react-client'
+      run: |
+        cd client
+        npm ci
+        npm test -- --watchAll=false
+
+    # Test AI service
+    - name: Test AI service
+      if: matrix.service == 'ai-service'
+      run: |
+        cd server/ai-service
+        pip install -r requirements.txt
+        python -m pytest tests/ -v
+
+    # Build and push Docker images
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./server/${{ matrix.service }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Deploy to Development
+  deploy-development:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
+    environment: development
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+
+    - name: Create namespace
+      run: |
+        kubectl create namespace ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }} --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy to development
+      run: |
+        # Update image tags in values file
+        sed -i 's|your-dockerhub/|ghcr.io/${{ github.repository }}/|g' helm/gethome-app/values-dev.yaml
+        sed -i 's|:latest|:${{ github.sha }}|g' helm/gethome-app/values-dev.yaml
+        
+        # Deploy using Helm
+        helm upgrade --install gethome-app-dev helm/gethome-app \
+          --namespace ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }} \
+          -f helm/gethome-app/values-dev.yaml \
+          --set global.environment=development \
+          --wait --timeout=10m
+
+    - name: Verify deployment
+      run: |
+        kubectl get pods -n ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }}
+        kubectl get services -n ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }}
+        kubectl get ingress -n ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }}
+
+  # Deploy to Production
+  deploy-production:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+
+    - name: Create namespace
+      run: |
+        kubectl create namespace ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }} --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy to production
+      run: |
+        # Update image tags in values file
+        sed -i 's|your-dockerhub/|ghcr.io/${{ github.repository }}/|g' helm/gethome-app/values.yaml
+        sed -i 's|:latest|:${{ github.sha }}|g' helm/gethome-app/values.yaml
+        
+        # Deploy using Helm
+        helm upgrade --install gethome-app helm/gethome-app \
+          --namespace ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }} \
+          --set global.environment=production \
+          --wait --timeout=15m
+
+    - name: Verify deployment
+      run: |
+        kubectl get pods -n ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }}
+        kubectl get services -n ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }}
+        kubectl get ingress -n ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }}
+
+    - name: Run smoke tests
+      run: |
+        # Wait for services to be ready
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=gethome-app -n ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }} --timeout=300s
+        
+        # Basic health checks
+        echo "Running health checks..."
+        # Add your health check endpoints here
+        # curl -f https://your-domain.com/health || exit 1
+
+  # Security Scan
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Notify on deployment
+  notify:
+    needs: [deploy-development, deploy-production]
+    runs-on: ubuntu-latest
+    if: always() && (needs.deploy-development.result == 'success' || needs.deploy-production.result == 'success')
+    steps:
+    - name: Notify deployment status
+      run: |
+        echo "Deployment completed successfully!"
+        echo "Environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production') || 'development' }}"
+        echo "Namespace: ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }}"
+        echo "Commit: ${{ github.sha }}"
+        
+        # Add your notification logic here (Slack, Teams, etc.)
+        # Example for Slack:
+        # curl -X POST -H 'Content-type: application/json' \
+        #   --data '{"text":"GetHome application deployed successfully!"}' \
+        #   ${{ secrets.SLACK_WEBHOOK_URL }} 

@@ -1,4 +1,16 @@
 apiVersion: v2
 name: gethome-app
-description: Helm chart for your full-stack app
-version: 0.1.0
+description: A comprehensive microservices application for Reaching Home Safely
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - microservices
+  - emergency-services
+  - ai
+  - authentication
+home: https://github.com/your-org/team-gethome
+sources:
+  - https://github.com/your-org/team-gethome
+maintainers:
+  - name: DevOps25 GetHome Team

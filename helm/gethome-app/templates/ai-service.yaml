@@ -1,7 +1,12 @@
+{{- if .Values.services.ai-service.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ai-service
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: ai-service
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -11,20 +16,65 @@ spec:
     metadata:
       labels:
         app: ai-service
+        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     spec:
+      {{- if .Values.serviceAccount.enabled }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default "gethome-service-account" }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: ai-service
           image: {{ .Values.services.ai-service.image }}
+          imagePullPolicy: {{ .Values.services.ai-service.imagePullPolicy }}
           ports:
             - containerPort: {{ .Values.services.ai-service.port }}
+              name: http
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.services.ai-service.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.services.ai-service.env }}
+          env:
+            {{- range .Values.services.ai-service.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.services.ai-service.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.services.ai-service.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: ai-service
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: ai-service
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
+  type: {{ .Values.services.ai-service.service.type }}
   selector:
     app: ai-service
   ports:
-    - port: 80
-      targetPort: {{ .Values.services.ai-service.port }}
+    - port: {{ .Values.services.ai-service.service.port }}
+      targetPort: {{ .Values.services.ai-service.service.targetPort }}
+      protocol: TCP
+      name: http
+{{- end }}
