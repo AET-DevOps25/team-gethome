@@ -1,0 +1,180 @@
+{{- if .Values.monitoring.prometheus.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: prometheus
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+data:
+  gethome-alerts.yml: |
+    groups:
+      - name: gethome-service-alerts
+        rules:
+          # Service down alerts
+          - alert: ServiceDown
+            expr: up{job=~".*-service"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Service {{ $labels.job }} is down"
+              description: "Service {{ $labels.job }} has been down for more than 1 minute"
+
+          # High error rate
+          - alert: HighErrorRate
+            expr: rate(http_requests_total{status=~"4..|5.."}[5m]) > 0.1
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High error rate for {{ $labels.job }}"
+              description: "Error rate is {{ $value }} errors per second for {{ $labels.job }}"
+
+          # High response time
+          - alert: HighResponseTime
+            expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High response time for {{ $labels.job }}"
+              description: "95th percentile response time is {{ $value }} seconds for {{ $labels.job }}"
+
+          # High memory usage
+          - alert: HighMemoryUsage
+            expr: (process_resident_memory_bytes / 1024 / 1024) > 1000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage for {{ $labels.job }}"
+              description: "Memory usage is {{ $value }} MB for {{ $labels.job }}"
+
+          # High CPU usage
+          - alert: HighCPUUsage
+            expr: rate(process_cpu_seconds_total[5m]) * 100 > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage for {{ $labels.job }}"
+              description: "CPU usage is {{ $value }}% for {{ $labels.job }}"
+
+      - name: gethome-infrastructure-alerts
+        rules:
+          # Pod restarting frequently
+          - alert: PodRestartingFrequently
+            expr: increase(kube_pod_container_status_restarts_total[1h]) > 5
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} is restarting frequently"
+              description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour"
+
+          # Node high CPU usage
+          - alert: NodeHighCPUUsage
+            expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage on node {{ $labels.instance }}"
+              description: "CPU usage is {{ $value }}% on node {{ $labels.instance }}"
+
+          # Node high memory usage
+          - alert: NodeHighMemoryUsage
+            expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage on node {{ $labels.instance }}"
+              description: "Memory usage is {{ $value }}% on node {{ $labels.instance }}"
+
+          # Disk space running low
+          - alert: DiskSpaceLow
+            expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Low disk space on {{ $labels.instance }}"
+              description: "Disk space is {{ $value }}% available on {{ $labels.instance }}"
+
+      - name: gethome-business-alerts
+        rules:
+          # Auth service specific alerts
+          - alert: HighLoginFailureRate
+            expr: rate(auth_login_failures_total[5m]) > 0.1
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High login failure rate"
+              description: "Login failure rate is {{ $value }} failures per second"
+
+          # Emergency service alerts
+          - alert: EmergencyServiceUnavailable
+            expr: up{job="emergency-service"} == 0
+            for: 30s
+            labels:
+              severity: critical
+            annotations:
+              summary: "Emergency service is unavailable"
+              description: "Emergency service is down - this is critical for user safety"
+
+          # AI service performance
+          - alert: AIServiceSlow
+            expr: histogram_quantile(0.95, rate(ai_request_duration_seconds_bucket[5m])) > 5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "AI service is responding slowly"
+              description: "AI service 95th percentile response time is {{ $value }} seconds"
+
+          # Database connection issues
+          - alert: DatabaseConnectionIssues
+            expr: mongodb_connections > 100
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High number of database connections"
+              description: "MongoDB has {{ $value }} active connections"
+
+      - name: gethome-availability-alerts
+        rules:
+          # Service availability
+          - alert: ServiceAvailabilityLow
+            expr: (up{job=~".*-service"} / count(up{job=~".*-service"})) * 100 < 90
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Service availability is below 90%"
+              description: "Only {{ $value }}% of services are available"
+
+          # End-to-end health check
+          - alert: EndToEndHealthCheckFailed
+            expr: up{job="react-client"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Frontend is unavailable"
+              description: "React client is down - users cannot access the application"
+
+          # API health check
+          - alert: APIHealthCheckFailed
+            expr: up{job=~"auth-service|usermanagement-service"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Core API services are down"
+              description: "Critical API services are unavailable"
+{{- end }} 

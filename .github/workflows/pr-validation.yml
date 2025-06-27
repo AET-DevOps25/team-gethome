@@ -1,0 +1,278 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  # Lint and validate code
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    # Lint Java services
+    - name: Lint Java services
+      run: |
+        for service in auth-service usermanagement-service emergency-service routing-service; do
+          echo "Linting $service..."
+          cd server/$service
+          ./gradlew spotlessCheck || exit 1
+          ./gradlew checkstyleMain || exit 1
+          cd ../..
+        done
+
+    # Lint React client
+    - name: Lint React client
+      run: |
+        cd client
+        npm ci
+        npm run lint
+        npm run type-check
+
+    # Lint Python AI service
+    - name: Lint AI service
+      run: |
+        cd server/ai-service
+        pip install flake8 black isort
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        black --check .
+        isort --check-only .
+
+    # Lint Helm charts
+    - name: Lint Helm charts
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+      
+    - name: Validate Helm chart
+      run: |
+        helm lint helm/gethome-app
+        helm template helm/gethome-app --dry-run
+
+  # Run tests
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, usermanagement-service, emergency-service, routing-service, ai-service, react-client]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17 (for Java services)
+      if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'react-client'
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up Node.js (for React client)
+      if: matrix.service == 'react-client'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Set up Python (for AI service)
+      if: matrix.service == 'ai-service'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    # Test Java services
+    - name: Test Java services
+      if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'react-client'
+      run: |
+        cd server/${{ matrix.service }}
+        ./gradlew test --no-daemon
+        ./gradlew jacocoTestReport
+
+    # Test React client
+    - name: Test React client
+      if: matrix.service == 'react-client'
+      run: |
+        cd client
+        npm ci
+        npm test -- --watchAll=false --coverage
+        npm run build
+
+    # Test AI service
+    - name: Test AI service
+      if: matrix.service == 'ai-service'
+      run: |
+        cd server/ai-service
+        pip install -r requirements.txt
+        python -m pytest tests/ -v --cov=. --cov-report=xml
+
+    # Upload test coverage
+    - name: Upload coverage to Codecov
+      if: matrix.service == 'react-client' || matrix.service == 'ai-service'
+      uses: codecov/codecov-action@v3
+      with:
+        file: |
+          client/coverage/lcov.info
+          server/ai-service/coverage.xml
+        flags: ${{ matrix.service }}
+        name: ${{ matrix.service }}-coverage
+
+  # Security scan
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run Snyk security scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+
+  # Build Docker images (without pushing)
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, usermanagement-service, emergency-service, routing-service, ai-service, react-client]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./server/${{ matrix.service }}
+        push: false
+        tags: gethome/${{ matrix.service }}:pr-${{ github.event.number }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Validate Kubernetes manifests
+  k8s-validation:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+
+    - name: Validate Kubernetes manifests
+      run: |
+        # Validate Helm chart
+        helm lint helm/gethome-app
+        
+        # Dry run Helm template
+        helm template gethome-app helm/gethome-app --dry-run
+        
+        # Validate with kubeval
+        helm template gethome-app helm/gethome-app | kubeval --strict
+
+    - name: Check for deprecated APIs
+      run: |
+        helm template gethome-app helm/gethome-app | kubectl-convert -f - --local=true
+
+  # Performance test (basic)
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install Lighthouse CI
+      run: npm install -g @lhci/cli@0.12.x
+
+    - name: Run Lighthouse CI
+      run: |
+        # This would run against a deployed version
+        # For now, just validate the configuration
+        echo "Performance tests would run here against deployed application"
+
+  # Comment PR with results
+  comment:
+    needs: [lint, test, security, build, k8s-validation]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - name: Comment PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: checks } = await github.rest.checks.listForRef({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: context.payload.pull_request.head.sha,
+          });
+          
+          const summary = checks.check_runs.map(check => 
+            `- ${check.name}: ${check.conclusion === 'success' ? '✅' : '❌'}`
+          ).join('\n');
+          
+          const comment = `## PR Validation Results
+          
+          ${summary}
+          
+          All checks completed for PR #${context.payload.pull_request.number}`;
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+            body: comment,
+          }); 
