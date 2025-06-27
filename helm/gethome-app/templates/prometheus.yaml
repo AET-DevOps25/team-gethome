@@ -42,7 +42,7 @@ data:
           - targets: ['usermanagement-service:8080']
         scrape_interval: 10s
 
-      # Emergency Service
+      # Message Service
       - job_name: 'message-service'
         metrics_path: '/actuator/prometheus'
         static_configs:
