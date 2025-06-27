@@ -2,7 +2,7 @@
 global:
   namespace: devops25-k8s-gethome
   environment: production
-  imageRegistry: ""
+  imageRegistry: "ghcr.io"
   imagePullSecrets: []
 
 # Replica count for all services
@@ -29,6 +29,65 @@ mongo:
   service:
     type: ClusterIP
     port: 27017
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  
+  # Prometheus configuration
+  prometheus:
+    enabled: true
+    image: prom/prometheus:v2.45.0
+    imagePullPolicy: IfNotPresent
+    retention: "15d"
+    storage:
+      size: 50Gi
+      storageClass: ""
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+  # Grafana configuration
+  grafana:
+    enabled: true
+    image: grafana/grafana:10.0.0
+    imagePullPolicy: IfNotPresent
+    adminUser: admin
+    adminPassword: admin123
+    storage:
+      size: 10Gi
+      storageClass: ""
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+  # AlertManager configuration
+  alertmanager:
+    enabled: true
+    image: prom/alertmanager:v0.25.0
+    imagePullPolicy: IfNotPresent
+    storage:
+      size: 5Gi
+      storageClass: ""
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    slack:
+      webhookUrl: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+      channel: "#gethome-alerts"
+      criticalChannel: "#gethome-critical"
 
 # Ingress configuration
 ingress:
@@ -58,6 +117,12 @@ ingress:
         - path: /api/routing
           pathType: Prefix
           service: routing-service
+        - path: /monitoring
+          pathType: Prefix
+          service: grafana
+        - path: /prometheus
+          pathType: Prefix
+          service: prometheus
   tls:
     - secretName: gethome-tls
       hosts:
@@ -68,7 +133,7 @@ services:
   # AI Service
   ai-service:
     enabled: true
-    image: your-dockerhub/ai-service:latest
+    image: ghcr.io/aet-devops25/team-gethome/ai-service:latest
     imagePullPolicy: IfNotPresent
     port: 8000
     resources:
@@ -83,6 +148,8 @@ services:
         value: "mongodb://mongo:27017/gethome"
       - name: AI_MODEL_PATH
         value: "/app/models"
+      - name: ENABLE_METRICS
+        value: "true"
     service:
       type: ClusterIP
       port: 80
@@ -91,7 +158,7 @@ services:
   # Auth Service
   auth-service:
     enabled: true
-    image: your-dockerhub/auth-service:latest
+    image: ghcr.io/aet-devops25/team-gethome/auth-service:latest
     imagePullPolicy: IfNotPresent
     port: 8080
     resources:
@@ -110,6 +177,10 @@ services:
         value: "your-super-secret-jwt-key-change-in-production"
       - name: JWT_EXPIRATION
         value: "86400000"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
     service:
       type: ClusterIP
       port: 80
@@ -118,7 +189,7 @@ services:
   # Emergency Service
   emergency-service:
     enabled: true
-    image: your-dockerhub/emergency-service:latest
+    image: ghcr.io/aet-devops25/team-gethome/emergency-service:latest
     imagePullPolicy: IfNotPresent
     port: 8080
     resources:
@@ -133,6 +204,10 @@ services:
         value: "production"
       - name: SPRING_DATA_MONGODB_URI
         value: "mongodb://mongo:27017/gethome"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
     service:
       type: ClusterIP
       port: 80
@@ -141,7 +216,7 @@ services:
   # Routing Service
   routing-service:
     enabled: true
-    image: your-dockerhub/routing-service:latest
+    image: ghcr.io/aet-devops25/team-gethome/routing-service:latest
     imagePullPolicy: IfNotPresent
     port: 8080
     resources:
@@ -156,6 +231,10 @@ services:
         value: "production"
       - name: SPRING_DATA_MONGODB_URI
         value: "mongodb://mongo:27017/gethome"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
     service:
       type: ClusterIP
       port: 80
@@ -164,7 +243,7 @@ services:
   # User Management Service
   usermanagement-service:
     enabled: true
-    image: your-dockerhub/usermanagement-service:latest
+    image: ghcr.io/aet-devops25/team-gethome/usermanagement-service:latest
     imagePullPolicy: IfNotPresent
     port: 8080
     resources:
@@ -181,6 +260,10 @@ services:
         value: "mongodb://mongo:27017/gethome"
       - name: AUTH_SERVICE_URL
         value: "http://auth-service:80"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
     service:
       type: ClusterIP
       port: 80
@@ -189,7 +272,7 @@ services:
   # React Client
   react-client:
     enabled: true
-    image: your-dockerhub/react-client:latest
+    image: ghcr.io/aet-devops25/team-gethome/react-client:latest
     imagePullPolicy: IfNotPresent
     port: 80
     resources:
