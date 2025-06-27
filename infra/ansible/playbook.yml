@@ -1,12 +1,16 @@
 - hosts: all
   become: true
   tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
     - name: Install Docker
-      yum:
-        name: docker
+      apt:
+        name: docker.io
         state: present
 
-    - name: Start Docker
+    - name: Start and enable Docker service
       service:
         name: docker
         state: started
@@ -15,10 +19,12 @@
     - name: Copy project files
       copy:
         src: ../../
-        dest: /home/ec2-user/app/
-        mode: 0755
+        dest: /home/ubuntu/app/
+        mode: '0755'
 
     - name: Build and start Docker containers
       shell: |
-        cd /home/ec2-user/app/
+        cd /home/ubuntu/app/
         docker compose up -d --build
+      args:
+        executable: /bin/bash
