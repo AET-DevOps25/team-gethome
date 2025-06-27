@@ -34,9 +34,10 @@ jobs:
 
     - name: Quick Java tests
       run: |
-        for service in auth-service usermanagement-service emergency-service routing-service; do
+        for service in auth-service usermanagement-service message-service routing-service; do
           echo "Testing $service..."
           cd server/$service
+          chmod +x ./gradlew
           ./gradlew test --no-daemon --continue || echo "Tests failed for $service"
           cd ../..
         done
