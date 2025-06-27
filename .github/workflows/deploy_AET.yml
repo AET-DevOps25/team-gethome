@@ -73,6 +73,7 @@ jobs:
       if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'react-client'
       run: |
         cd server/${{ matrix.service }}
+        chmod +x ./gradlew
         ./gradlew test
 
     # Test React client
