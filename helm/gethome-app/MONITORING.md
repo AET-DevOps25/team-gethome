@@ -44,7 +44,7 @@ The monitoring stack consists of:
 - Stores data for 15 days
 - Uses 50GB persistent storage
 - Monitors:
-  - All microservices (auth, user management, emergency, routing, AI)
+  - All microservices (auth, user management, message, routing, AI)
   - MongoDB database
   - Kubernetes infrastructure
   - Application-specific metrics
@@ -140,7 +140,7 @@ The monitoring stack consists of:
 
 #### Critical Alerts
 - **ServiceDown**: Service is down for >1 minute
-- **EmergencyServiceUnavailable**: Emergency service down for >30 seconds
+- **MessageServiceUnavailable**: Message service down for >30 seconds
 - **EndToEndHealthCheckFailed**: Frontend unavailable for >2 minutes
 - **APIHealthCheckFailed**: Core API services down for >1 minute
 
@@ -241,7 +241,7 @@ helm upgrade --install gethome-app ./helm/gethome-app \
    - Model processing time
    - Model accuracy
 
-4. **Emergency Service Metrics**:
+4. **Message Service Metrics**:
    - Emergency alerts per second
    - Response time
    - Alert resolution time

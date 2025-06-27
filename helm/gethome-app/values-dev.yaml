@@ -94,9 +94,9 @@ ingress:
         - path: /api/ai
           pathType: Prefix
           service: ai-service
-        - path: /api/emergency
+        - path: /api/message
           pathType: Prefix
-          service: emergency-service
+          service: message-service
         - path: /api/routing
           pathType: Prefix
           service: routing-service
@@ -169,10 +169,10 @@ services:
       port: 80
       targetPort: 8080
 
-  # Emergency Service
-  emergency-service:
+  # message Service
+  message-service:
     enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/emergency-service:develop
+    image: ghcr.io/aet-devops25/team-gethome/message-service:develop
     imagePullPolicy: Always
     port: 8080
     resources:
