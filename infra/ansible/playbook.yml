@@ -4,7 +4,7 @@
     - name: Update apt cache
       apt:
         update_cache: yes
-
+        
     - name: Install dependencies
       apt:
         name:
@@ -12,8 +12,19 @@
           - curl
           - gnupg
           - lsb-release
+          - apt-transport-https
         state: present
-
+        
+    - name: Remove any existing Docker installations
+      apt:
+        name:
+          - docker
+          - docker-engine
+          - docker.io
+          - containerd
+          - runc
+        state: absent
+        
     - name: Add Docker GPG key
       shell: |
         install -m 0755 -d /etc/apt/keyrings
@@ -21,7 +32,7 @@
         chmod a+r /etc/apt/keyrings/docker.gpg
       args:
         creates: /etc/apt/keyrings/docker.gpg
-
+        
     - name: Add Docker repository
       shell: |
         echo \
@@ -29,11 +40,11 @@
         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
       args:
         creates: /etc/apt/sources.list.d/docker.list
-
+        
     - name: Update apt again after adding Docker repo
       apt:
         update_cache: yes
-
+        
     - name: Install Docker and Docker Compose plugin
       apt:
         name:
@@ -43,13 +54,77 @@
           - docker-buildx-plugin
           - docker-compose-plugin
         state: latest
-
-    - name: Start and enable Docker service
-      service:
+        update_cache: yes
+        
+    - name: Check if Docker daemon is running
+      command: systemctl is-active docker
+      register: docker_status
+      ignore_errors: yes
+      
+    - name: Show Docker service status if not running
+      debug:
+        msg: "Docker service status: {{ docker_status.stdout }}"
+      when: docker_status.rc != 0
+      
+    - name: Get Docker service logs if failed
+      shell: journalctl -xeu docker.service --no-pager -l
+      register: docker_logs
+      when: docker_status.rc != 0
+      ignore_errors: yes
+      
+    - name: Show Docker logs if service failed
+      debug:
+        msg: "{{ docker_logs.stdout }}"
+      when: docker_status.rc != 0 and docker_logs is defined
+      
+    - name: Start Docker service
+      systemd:
         name: docker
         state: started
+        daemon_reload: yes
+      register: docker_start_result
+      ignore_errors: yes
+      
+    - name: Enable Docker service
+      systemd:
+        name: docker
         enabled: yes
-
+      when: docker_start_result is succeeded
+      
+    - name: Restart Docker service if start failed
+      systemd:
+        name: docker
+        state: restarted
+        daemon_reload: yes
+      when: docker_start_result is failed
+      ignore_errors: yes
+      
+    - name: Final check - Docker service status
+      command: systemctl status docker --no-pager -l
+      register: final_docker_status
+      ignore_errors: yes
+      
+    - name: Show final Docker status
+      debug:
+        msg: "{{ final_docker_status.stdout }}"
+        
+    - name: Verify Docker is working
+      command: docker --version
+      register: docker_version
+      ignore_errors: yes
+      
+    - name: Show Docker version
+      debug:
+        msg: "Docker version: {{ docker_version.stdout }}"
+      when: docker_version.rc == 0
+      
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+      when: docker_version.rc == 0
+      
     - name: Copy project files
       copy:
         src: ../../
@@ -57,10 +132,13 @@
         mode: '0755'
         owner: ubuntu
         group: ubuntu
-
+      when: docker_version.rc == 0
+      
     - name: Build and start Docker containers
       shell: |
         cd /home/ubuntu/app/
         docker compose up -d --build
       args:
         executable: /bin/bash
+      become_user: ubuntu
+      when: docker_version.rc == 0
