@@ -6,24 +6,28 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      PUBLIC_IP: ${{ secrets.EC2_PUBLIC_IP }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up SSH key
+      - name: Set up SSH key, run Ansible playbook, and clean up
         run: |
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > key.pem
-          chmod 600 key.pem
+          # Create directory and write private key file
+          mkdir -p infra/ansible
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > infra/ansible/key.pem
+          chmod 600 infra/ansible/key.pem
 
-      - name: Create Ansible inventory
-        run: |
+          # Create Ansible inventory with relative key path (key.pem)
           echo "[ec2]" > inventory
-          echo "$PUBLIC_IP ansible_user=ec2-user ansible_ssh_private_key_file=./key.pem" >> inventory
+          echo "${{ secrets.PUBLIC_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=key.pem ansible_python_interpreter=/usr/bin/python3" >> inventory
 
-      - name: Run Ansible Playbook
-        run: |
+          echo "=== Inventory content ==="
+          cat inventory
+
+          # Change to ansible directory and run playbook, disable host key checking
           cd infra/ansible
-          ansible-playbook -i ../../inventory playbook.yml
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ../../inventory playbook.yml
+
+          # Remove private key file after running
+          rm -f key.pem
