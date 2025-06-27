@@ -116,15 +116,15 @@ data:
               summary: "High login failure rate"
               description: "Login failure rate is {{ $value }} failures per second"
 
-          # Emergency service alerts
-          - alert: EmergencyServiceUnavailable
-            expr: up{job="emergency-service"} == 0
-            for: 30s
+          # Message service alerts
+          - alert: MessageServiceDown
+            expr: up{job="message-service"} == 0
+            for: 1m
             labels:
               severity: critical
             annotations:
-              summary: "Emergency service is unavailable"
-              description: "Emergency service is down - this is critical for user safety"
+              summary: "Message service is down"
+              description: "Message service has been down for more than 1 minute"
 
           # AI service performance
           - alert: AIServiceSlow

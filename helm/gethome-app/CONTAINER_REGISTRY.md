@@ -30,7 +30,7 @@ The following images are automatically built and pushed to GHCR:
 ### Java Services
 - `ghcr.io/AET-DevOps25/team-gethome/auth-service`
 - `ghcr.io/AET-DevOps25/team-gethome/usermanagement-service`
-- `ghcr.io/AET-DevOps25/team-gethome/emergency-service`
+- `ghcr.io/AET-DevOps25/team-gethome/message-service`
 - `ghcr.io/AET-DevOps25/team-gethome/routing-service`
 
 ### Python Service
@@ -60,7 +60,7 @@ team-gethome/
 ├── server/
 │   ├── auth-service/
 │   ├── usermanagement-service/
-│   ├── emergency-service/
+│   ├── message-service/
 │   ├── routing-service/
 │   └── ai-service/
 ├── client/

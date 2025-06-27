@@ -144,7 +144,7 @@ deploy_application() {
                 --set services.auth-service.image="$REGISTRY/$REPO_NAME/auth-service:$IMAGE_TAG" \
                 --set services.usermanagement-service.image="$REGISTRY/$REPO_NAME/usermanagement-service:$IMAGE_TAG" \
                 --set services.ai-service.image="$REGISTRY/$REPO_NAME/ai-service:$IMAGE_TAG" \
-                --set services.emergency-service.image="$REGISTRY/$REPO_NAME/emergency-service:$IMAGE_TAG" \
+                --set services.message-service.image="$REGISTRY/$REPO_NAME/message-service:$IMAGE_TAG" \
                 --set services.routing-service.image="$REGISTRY/$REPO_NAME/routing-service:$IMAGE_TAG" \
                 --set services.react-client.image="$REGISTRY/$REPO_NAME/react-client:$IMAGE_TAG" \
                 --wait --timeout=15m
@@ -191,7 +191,7 @@ show_access_info() {
     echo "Auth Service: /api/auth"
     echo "User Management: /api/user"
     echo "AI Service: /api/ai"
-    echo "Emergency Service: /api/emergency"
+    echo "message Service: /api/message"
     echo "Routing Service: /api/routing"
     
     echo -e "${BLUE}Monitoring:${NC}"
@@ -204,7 +204,7 @@ show_access_info() {
     echo "  - auth-service"
     echo "  - usermanagement-service"
     echo "  - ai-service"
-    echo "  - emergency-service"
+    echo "  - message-service"
     echo "  - routing-service"
     echo "  - react-client"
 }

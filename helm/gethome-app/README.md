@@ -10,7 +10,7 @@ The GetHome application consists of the following components:
 - **Auth Service**: Authentication and authorization service
 - **User Management Service**: User profile and management service
 - **AI Service**: Artificial intelligence and machine learning service
-- **Emergency Service**: Emergency response and notification service
+- **Message Service**: Message response and notification service
 - **Routing Service**: Route planning and navigation service
 - **React Client**: Frontend web application
 
