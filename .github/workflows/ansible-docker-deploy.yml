@@ -1,31 +1,33 @@
 name: EC2 Ansible Docker Deploy
+
 on:
   workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Set up SSH key, run Ansible playbook, and clean up
         run: |
-          # Create SSH key file in the ansible directory
+          # Create directory and write private key file
           mkdir -p infra/ansible
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > infra/ansible/key.pem
           chmod 600 infra/ansible/key.pem
-          
-          # Create Ansible inventory file
+
+          # Create Ansible inventory with relative key path (key.pem)
           echo "[ec2]" > inventory
           echo "${{ secrets.PUBLIC_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=key.pem ansible_python_interpreter=/usr/bin/python3" >> inventory
-          
+
           echo "=== Inventory content ==="
           cat inventory
-          
-          # Run the playbook from the ansible directory
+
+          # Change to ansible directory and run playbook, disable host key checking
           cd infra/ansible
           ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ../../inventory playbook.yml
-          
-          # Clean up SSH key file
+
+          # Remove private key file after running
           rm -f key.pem
-          cd ../..
