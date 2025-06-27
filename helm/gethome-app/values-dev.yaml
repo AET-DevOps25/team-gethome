@@ -1,14 +1,14 @@
-# Global configuration
+# Development environment configuration
 global:
   namespace: devops25-k8s-gethome
-  environment: production
+  environment: development
   imageRegistry: "ghcr.io"
   imagePullSecrets: []
 
-# Replica count for all services
+# Replica count for development
 replicaCount: 1
 
-# MongoDB configuration
+# MongoDB configuration for development
 mongo:
   enabled: true
   image: mongo:6
@@ -17,20 +17,20 @@ mongo:
   password: example
   database: gethome
   storage:
-    size: 10Gi
+    size: 5Gi
     storageClass: ""
   resources:
     limits:
-      cpu: 1000m
-      memory: 2Gi
-    requests:
       cpu: 500m
       memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
   service:
     type: ClusterIP
     port: 27017
 
-# Monitoring configuration
+# Monitoring configuration for development
 monitoring:
   enabled: true
   
@@ -39,25 +39,7 @@ monitoring:
     enabled: true
     image: prom/prometheus:v2.45.0
     imagePullPolicy: IfNotPresent
-    retention: "15d"
-    storage:
-      size: 50Gi
-      storageClass: ""
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 2Gi
-      requests:
-        cpu: 500m
-        memory: 1Gi
-
-  # Grafana configuration
-  grafana:
-    enabled: true
-    image: grafana/grafana:10.0.0
-    imagePullPolicy: IfNotPresent
-    adminUser: admin
-    adminPassword: admin123
+    retention: "7d"
     storage:
       size: 10Gi
       storageClass: ""
@@ -69,35 +51,36 @@ monitoring:
         cpu: 250m
         memory: 512Mi
 
-  # AlertManager configuration
-  alertmanager:
+  # Grafana configuration
+  grafana:
     enabled: true
-    image: prom/alertmanager:v0.25.0
+    image: grafana/grafana:10.0.0
     imagePullPolicy: IfNotPresent
+    adminUser: admin
+    adminPassword: admin123
     storage:
       size: 5Gi
       storageClass: ""
     resources:
       limits:
-        cpu: 500m
+        cpu: 250m
         memory: 512Mi
       requests:
-        cpu: 250m
+        cpu: 125m
         memory: 256Mi
-    slack:
-      webhookUrl: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
-      channel: "#gethome-alerts"
-      criticalChannel: "#gethome-critical"
 
-# Ingress configuration
+  # AlertManager configuration
+  alertmanager:
+    enabled: false  # Disabled in development
+
+# Ingress configuration for development
 ingress:
   enabled: true
   className: nginx
   annotations:
     kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
-    - host: gethome.local
+    - host: gethome-dev.local
       paths:
         - path: /
           pathType: Prefix
@@ -123,32 +106,30 @@ ingress:
         - path: /prometheus
           pathType: Prefix
           service: prometheus
-  tls:
-    - secretName: gethome-tls
-      hosts:
-        - gethome.local
 
-# Services configuration
+# Services configuration for development
 services:
   # AI Service
   ai-service:
     enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/ai-service:latest
-    imagePullPolicy: IfNotPresent
+    image: ghcr.io/aet-devops25/team-gethome/ai-service:develop
+    imagePullPolicy: Always
     port: 8000
     resources:
       limits:
-        cpu: 1000m
-        memory: 2Gi
-      requests:
         cpu: 500m
         memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
     env:
       - name: MONGODB_URI
         value: "mongodb://mongo:27017/gethome"
       - name: AI_MODEL_PATH
         value: "/app/models"
       - name: ENABLE_METRICS
+        value: "true"
+      - name: DEBUG
         value: "true"
     service:
       type: ClusterIP
@@ -158,123 +139,9 @@ services:
   # Auth Service
   auth-service:
     enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/auth-service:latest
-    imagePullPolicy: IfNotPresent
+    image: ghcr.io/aet-devops25/team-gethome/auth-service:develop
+    imagePullPolicy: Always
     port: 8080
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
-    env:
-      - name: SPRING_PROFILES_ACTIVE
-        value: "production"
-      - name: SPRING_DATA_MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
-      - name: JWT_SECRET
-        value: "your-super-secret-jwt-key-change-in-production"
-      - name: JWT_EXPIRATION
-        value: "86400000"
-      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-        value: "health,info,prometheus,metrics"
-      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
-        value: "true"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-
-  # Emergency Service
-  emergency-service:
-    enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/emergency-service:latest
-    imagePullPolicy: IfNotPresent
-    port: 8080
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
-    env:
-      - name: SPRING_PROFILES_ACTIVE
-        value: "production"
-      - name: SPRING_DATA_MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
-      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-        value: "health,info,prometheus,metrics"
-      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
-        value: "true"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-
-  # Routing Service
-  routing-service:
-    enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/routing-service:latest
-    imagePullPolicy: IfNotPresent
-    port: 8080
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
-    env:
-      - name: SPRING_PROFILES_ACTIVE
-        value: "production"
-      - name: SPRING_DATA_MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
-      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-        value: "health,info,prometheus,metrics"
-      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
-        value: "true"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-
-  # User Management Service
-  usermanagement-service:
-    enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/usermanagement-service:latest
-    imagePullPolicy: IfNotPresent
-    port: 8080
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
-    env:
-      - name: SPRING_PROFILES_ACTIVE
-        value: "production"
-      - name: SPRING_DATA_MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
-      - name: AUTH_SERVICE_URL
-        value: "http://auth-service:80"
-      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-        value: "health,info,prometheus,metrics"
-      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
-        value: "true"
-    service:
-      type: ClusterIP
-      port: 80
-      targetPort: 8080
-
-  # React Client
-  react-client:
-    enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/react-client:latest
-    imagePullPolicy: IfNotPresent
-    port: 80
     resources:
       limits:
         cpu: 500m
@@ -283,30 +150,154 @@ services:
         cpu: 250m
         memory: 256Mi
     env:
+      - name: SPRING_PROFILES_ACTIVE
+        value: "development"
+      - name: SPRING_DATA_MONGODB_URI
+        value: "mongodb://mongo:27017/gethome"
+      - name: JWT_SECRET
+        value: "dev-jwt-secret-key"
+      - name: JWT_EXPIRATION
+        value: "86400000"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
+      - name: LOGGING_LEVEL_COM_AUTHSERVICE
+        value: "DEBUG"
+    service:
+      type: ClusterIP
+      port: 80
+      targetPort: 8080
+
+  # Emergency Service
+  emergency-service:
+    enabled: true
+    image: ghcr.io/aet-devops25/team-gethome/emergency-service:develop
+    imagePullPolicy: Always
+    port: 8080
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    env:
+      - name: SPRING_PROFILES_ACTIVE
+        value: "development"
+      - name: SPRING_DATA_MONGODB_URI
+        value: "mongodb://mongo:27017/gethome"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
+      - name: LOGGING_LEVEL_COM_EXAMPLE_GETHOME
+        value: "DEBUG"
+    service:
+      type: ClusterIP
+      port: 80
+      targetPort: 8080
+
+  # Routing Service
+  routing-service:
+    enabled: true
+    image: ghcr.io/aet-devops25/team-gethome/routing-service:develop
+    imagePullPolicy: Always
+    port: 8080
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    env:
+      - name: SPRING_PROFILES_ACTIVE
+        value: "development"
+      - name: SPRING_DATA_MONGODB_URI
+        value: "mongodb://mongo:27017/gethome"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
+      - name: LOGGING_LEVEL_COM_EXAMPLE_ROUTING
+        value: "DEBUG"
+    service:
+      type: ClusterIP
+      port: 80
+      targetPort: 8080
+
+  # User Management Service
+  usermanagement-service:
+    enabled: true
+    image: ghcr.io/aet-devops25/team-gethome/usermanagement-service:develop
+    imagePullPolicy: Always
+    port: 8080
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    env:
+      - name: SPRING_PROFILES_ACTIVE
+        value: "development"
+      - name: SPRING_DATA_MONGODB_URI
+        value: "mongodb://mongo:27017/gethome"
+      - name: AUTH_SERVICE_URL
+        value: "http://auth-service:80"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
+      - name: LOGGING_LEVEL_COM_USERMANAGEMENT
+        value: "DEBUG"
+    service:
+      type: ClusterIP
+      port: 80
+      targetPort: 8080
+
+  # React Client
+  react-client:
+    enabled: true
+    image: ghcr.io/aet-devops25/team-gethome/react-client:develop
+    imagePullPolicy: Always
+    port: 80
+    resources:
+      limits:
+        cpu: 250m
+        memory: 256Mi
+      requests:
+        cpu: 125m
+        memory: 128Mi
+    env:
       - name: REACT_APP_API_BASE_URL
-        value: "https://gethome.local/api"
+        value: "http://gethome-dev.local/api"
       - name: REACT_APP_AUTH_SERVICE_URL
-        value: "https://gethome.local/api/auth"
+        value: "http://gethome-dev.local/api/auth"
+      - name: REACT_APP_ENVIRONMENT
+        value: "development"
     service:
       type: ClusterIP
       port: 80
       targetPort: 80
 
-# ConfigMap for shared configuration
+# ConfigMap for development
 configMap:
   enabled: true
   data:
     app.name: "GetHome"
     app.version: "1.0.0"
-    app.environment: "production"
+    app.environment: "development"
 
-# Secrets configuration
+# Secrets for development
 secrets:
   enabled: true
   data:
-    jwt-secret: "your-super-secret-jwt-key-change-in-production"
+    jwt-secret: "dev-jwt-secret-key"
     mongo-password: "example"
-    email-password: "your-email-password"
+    email-password: "dev-email-password"
 
 # Service Account
 serviceAccount:
@@ -314,31 +305,20 @@ serviceAccount:
   name: gethome-service-account
   annotations: {}
 
-# Pod Security Context
+# Pod Security Context (relaxed for development)
 podSecurityContext:
   fsGroup: 1000
-  runAsNonRoot: true
-  runAsUser: 1000
 
-# Container Security Context
+# Container Security Context (relaxed for development)
 containerSecurityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 1000
-  capabilities:
-    drop:
-      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: false
 
-# Pod Disruption Budget
+# Pod Disruption Budget (disabled in development)
 podDisruptionBudget:
   enabled: false
-  minAvailable: 1
 
-# Horizontal Pod Autoscaler
+# Horizontal Pod Autoscaler (disabled in development)
 hpa:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
+  enabled: false 

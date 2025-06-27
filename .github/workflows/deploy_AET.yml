@@ -1,0 +1,493 @@
+name: Deploy GetHome Application
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'helm/**'
+      - 'server/**'
+      - 'client/**'
+      - '.github/workflows/deploy_AET.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'helm/**'
+      - 'server/**'
+      - 'client/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      namespace:
+        description: 'Kubernetes namespace'
+        required: false
+        default: 'devops25-k8s-gethome'
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Test and Build Services
+  test-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, usermanagement-service, emergency-service, routing-service, ai-service, react-client]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17 (for Java services)
+      if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'react-client'
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up Node.js (for React client)
+      if: matrix.service == 'react-client'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: client/package-lock.json
+
+    - name: Set up Python (for AI service)
+      if: matrix.service == 'ai-service'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    # Test Java services
+    - name: Test Java services
+      if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'react-client'
+      run: |
+        cd server/${{ matrix.service }}
+        ./gradlew test
+
+    # Test React client
+    - name: Test React client
+      if: matrix.service == 'react-client'
+      run: |
+        cd client
+        npm ci
+        npm test -- --watchAll=false
+
+    # Test AI service
+    - name: Test AI service
+      if: matrix.service == 'ai-service'
+      run: |
+        cd server/ai-service
+        pip install -r requirements.txt
+        python -m pytest tests/ -v
+
+    # Build and push Docker images
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./server/${{ matrix.service }}
+        file: ./server/${{ matrix.service }}/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+  # Deploy to Development
+  deploy-development:
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Configure kubectl for development cluster
+      run: |
+        # Configure kubectl for your development cluster
+        # Replace with your actual cluster configuration
+        echo "${{ secrets.DEV_KUBECONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        
+        # Verify cluster access
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+
+    - name: Add Helm repositories
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo update
+
+    - name: Create namespace
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy to development
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Deploy the application
+        helm upgrade --install gethome-app ./helm/gethome-app \
+          --namespace devops25-k8s-gethome \
+          --create-namespace \
+          -f ./helm/gethome-app/values-dev.yaml \
+          --set global.environment=development \
+          --set global.imageRegistry=ghcr.io \
+          --set global.imagePullSecrets[0].name=ghcr-secret \
+          --wait --timeout=10m
+
+    - name: Verify deployment
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Wait for all pods to be ready
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gethome-app \
+          --namespace devops25-k8s-gethome --timeout=300s
+        
+        # Check service status
+        kubectl get services -n devops25-k8s-gethome
+        kubectl get pods -n devops25-k8s-gethome
+
+    - name: Run smoke tests
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Basic health checks
+        kubectl get endpoints -n devops25-k8s-gethome
+        
+        # Check if services are responding
+        # Add your specific health check endpoints here
+        echo "Development deployment completed successfully"
+
+  # Deploy to Staging
+  deploy-staging:
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: deploy-development
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Configure kubectl for staging cluster
+      run: |
+        echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+
+    - name: Add Helm repositories
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo update
+
+    - name: Create namespace
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy to staging
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        helm upgrade --install gethome-app ./helm/gethome-app \
+          --namespace devops25-k8s-gethome \
+          --create-namespace \
+          -f ./helm/gethome-app/values.yaml \
+          --set global.environment=staging \
+          --set global.imageRegistry=ghcr.io \
+          --set global.imagePullSecrets[0].name=ghcr-secret \
+          --set services.auth-service.image=ghcr.io/${{ env.IMAGE_NAME }}/auth-service:main \
+          --set services.usermanagement-service.image=ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:main \
+          --set services.ai-service.image=ghcr.io/${{ env.IMAGE_NAME }}/ai-service:main \
+          --set services.emergency-service.image=ghcr.io/${{ env.IMAGE_NAME }}/emergency-service:main \
+          --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:main \
+          --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:main \
+          --wait --timeout=10m
+
+    - name: Verify deployment
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gethome-app \
+          --namespace devops25-k8s-gethome --timeout=300s
+        
+        kubectl get services -n devops25-k8s-gethome
+        kubectl get pods -n devops25-k8s-gethome
+
+    - name: Run integration tests
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Run integration tests against staging environment
+        echo "Running integration tests..."
+        # Add your integration test commands here
+        
+        echo "Staging deployment completed successfully"
+
+  # Deploy to Production
+  deploy-production:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    runs-on: ubuntu-latest
+    environment: production
+    needs: deploy-staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Configure kubectl for production cluster
+      run: |
+        echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Install Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'latest'
+
+    - name: Add Helm repositories
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add grafana https://grafana.github.io/helm-charts
+        helm repo update
+
+    - name: Create namespace
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy to production
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        helm upgrade --install gethome-app ./helm/gethome-app \
+          --namespace devops25-k8s-gethome \
+          --create-namespace \
+          -f ./helm/gethome-app/values.yaml \
+          --set global.environment=production \
+          --set global.imageRegistry=ghcr.io \
+          --set global.imagePullSecrets[0].name=ghcr-secret \
+          --set services.auth-service.image=ghcr.io/${{ env.IMAGE_NAME }}/auth-service:latest \
+          --set services.usermanagement-service.image=ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:latest \
+          --set services.ai-service.image=ghcr.io/${{ env.IMAGE_NAME }}/ai-service:latest \
+          --set services.emergency-service.image=ghcr.io/${{ env.IMAGE_NAME }}/emergency-service:latest \
+          --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest \
+          --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest \
+          --wait --timeout=15m
+
+    - name: Verify deployment
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gethome-app \
+          --namespace devops25-k8s-gethome --timeout=300s
+        
+        kubectl get services -n devops25-k8s-gethome
+        kubectl get pods -n devops25-k8s-gethome
+
+    - name: Run production tests
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Run production smoke tests
+        echo "Running production tests..."
+        # Add your production test commands here
+        
+        echo "Production deployment completed successfully"
+
+    - name: Notify deployment success
+      if: success()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: issues } = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `Production Deployment Success - ${new Date().toISOString()}`,
+            body: `## Production Deployment Completed Successfully
+          
+          **Environment**: Production
+          **Namespace**: devops25-k8s-gethome
+          **Commit**: ${context.sha}
+          **Branch**: ${context.ref}
+          **Deployed by**: ${context.actor}
+          
+          ### Services Deployed
+          - Auth Service: \`ghcr.io/${{ env.IMAGE_NAME }}/auth-service:latest\`
+          - User Management Service: \`ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:latest\`
+          - AI Service: \`ghcr.io/${{ env.IMAGE_NAME }}/ai-service:latest\`
+          - Emergency Service: \`ghcr.io/${{ env.IMAGE_NAME }}/emergency-service:latest\`
+          - Routing Service: \`ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest\`
+          - React Client: \`ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest\`
+          
+          ### Monitoring
+          - Grafana: Available at monitoring endpoint
+          - Prometheus: Available at prometheus endpoint
+          - AlertManager: Configured for production alerts
+          
+          ### Next Steps
+          1. Monitor application health
+          2. Check Grafana dashboards
+          3. Verify all services are responding
+          4. Run end-to-end tests
+          
+          Deployed at: ${new Date().toISOString()}`,
+            labels: ['deployment', 'production', 'success']
+          });
+
+  # Rollback job (manual trigger)
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    - name: Configure kubectl
+      run: |
+        if [ "${{ github.event.inputs.environment }}" = "production" ]; then
+          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > kubeconfig
+        elif [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > kubeconfig
+        else
+          echo "${{ secrets.DEV_KUBECONFIG }}" | base64 -d > kubeconfig
+        fi
+        export KUBECONFIG=kubeconfig
+
+    - name: Rollback deployment
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Get the previous revision
+        PREVIOUS_REVISION=$(helm history gethome-app -n devops25-k8s-gethome --output json | jq -r '.[-2].revision')
+        
+        if [ "$PREVIOUS_REVISION" != "null" ]; then
+          echo "Rolling back to revision $PREVIOUS_REVISION"
+          helm rollback gethome-app $PREVIOUS_REVISION -n devops25-k8s-gethome --wait --timeout=10m
+          echo "Rollback completed successfully"
+        else
+          echo "No previous revision found for rollback"
+          exit 1
+        fi
+
+    - name: Verify rollback
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gethome-app \
+          --namespace devops25-k8s-gethome --timeout=300s
+        
+        kubectl get pods -n devops25-k8s-gethome
+        echo "Rollback verification completed"
+
+  # Security Scan
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Notify on deployment
+  notify:
+    needs: [deploy-development, deploy-staging, deploy-production]
+    runs-on: ubuntu-latest
+    if: always() && (needs.deploy-development.result == 'success' || needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    steps:
+    - name: Notify deployment status
+      run: |
+        echo "Deployment completed successfully!"
+        echo "Environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production') || 'development' }}"
+        echo "Namespace: ${{ github.event.inputs.namespace || 'devops25-k8s-gethome' }}"
+        echo "Commit: ${{ github.sha }}"
+        
+        # Add your notification logic here (Slack, Teams, etc.)
+        # Example for Slack:
+        # curl -X POST -H 'Content-type: application/json' \
+        #   --data '{"text":"GetHome application deployed successfully!"}' \
+        #   ${{ secrets.SLACK_WEBHOOK_URL }} 
