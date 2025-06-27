@@ -7,7 +7,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      PUBLIC_IP: 54.227.141.25
+      PUBLIC_DNS: ec2-54-227-141-25.compute-1.amazonaws.com
 
     steps:
       - name: Checkout code
@@ -21,9 +21,12 @@ jobs:
       - name: Create Ansible inventory
         run: |
           echo "[ec2]" > inventory
-          echo "${{ env.PUBLIC_IP }} ansible_user=ec2-user ansible_ssh_private_key_file=./key.pem" >> inventory
+          echo "${{ env.PUBLIC_DNS }} ansible_user=ubuntu ansible_ssh_private_key_file=./key.pem ansible_python_interpreter=/usr/bin/python3" >> inventory
+
+      - name: Show inventory (debug)
+        run: cat inventory
 
       - name: Run Ansible Playbook
         run: |
           cd infra/ansible
-          ansible-playbook -i ../../inventory playbook.yml
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i ../../inventory playbook.yml
