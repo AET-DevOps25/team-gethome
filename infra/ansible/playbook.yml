@@ -137,7 +137,7 @@
     - name: Build and start Docker containers
       shell: |
         cd /home/ubuntu/app/
-        docker compose up -d --build
+        sg docker -c "docker compose up -d --build"
       args:
         executable: /bin/bash
       become_user: ubuntu
