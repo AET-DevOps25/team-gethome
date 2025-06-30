@@ -80,14 +80,12 @@ const App: React.FC = () => {
                             </ProfileCheckRoute>
                         }
                     />
-                    <Route
-                        path="/profile"
-                        element={
-                            <ProfileCheckRoute>
-                                <ProfileSettingsPage />
-                            </ProfileCheckRoute>
-                        }
-                    />
+                    
+                    <Route path="/profile" element={<HomePage />} />
+                    <Route path="/map" element={<HomePage />} />
+                    <Route path="/chat" element={<HomePage />} />
+                    <Route path="/flags" element={<HomePage />} />
+
                     <Route path="/" element={<Navigate to="/login" replace />} />
                 </Routes>
             </Router>
