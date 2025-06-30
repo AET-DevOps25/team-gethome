@@ -67,34 +67,28 @@ const App: React.FC = () => {
                     <Route
                         path="/dashboard"
                         element={
-                            <PrivateRoute>
-                                <ProfileCheckRoute>
-                                    <DashboardPage />
-                                </ProfileCheckRoute>
-                            </PrivateRoute>
+                            <ProfileCheckRoute>
+                                <DashboardPage />
+                            </ProfileCheckRoute>
                         }
                     />
                     <Route
                         path="/home"
                         element={
-                            <PrivateRoute>
-                                <ProfileCheckRoute>
-                                    <HomePage />
-                                </ProfileCheckRoute>
-                            </PrivateRoute>
+                            <ProfileCheckRoute>
+                                <HomePage />
+                            </ProfileCheckRoute>
                         }
                     />
                     <Route
                         path="/profile"
                         element={
-                            <PrivateRoute>
-                                <ProfileCheckRoute>
-                                    <ProfileSettingsPage />
-                                </ProfileCheckRoute>
-                            </PrivateRoute>
+                            <ProfileCheckRoute>
+                                <ProfileSettingsPage />
+                            </ProfileCheckRoute>
                         }
                     />
-                    <Route path="/" element={<Navigate to="/home" replace />} />
+                    <Route path="/" element={<Navigate to="/login" replace />} />
                 </Routes>
             </Router>
         </ThemeProvider>
