@@ -13,6 +13,7 @@ import { authService } from './services/authService';
 import { userManagementService } from './services/userManagementService';
 import { UserProfile } from './types/user';
 import MapPage from './pages/map/MapPage';
+import ChatPage from './pages/chat/ChatPage';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const isAuthenticated = authService.isAuthenticated();
@@ -84,7 +85,7 @@ const App: React.FC = () => {
                     
                     <Route path="/profile" element={<HomePage />} />
                     <Route path="/map" element={<MapPage />} />
-                    <Route path="/chat" element={<HomePage />} />
+                    <Route path="/chat" element={<ChatPage />} />
                     <Route path="/flags" element={<HomePage />} />
 
                     <Route path="/" element={<Navigate to="/login" replace />} />
