@@ -12,6 +12,7 @@ import ProfileSettingsPage from './pages/profile/ProfileSettingsPage';
 import { authService } from './services/authService';
 import { userManagementService } from './services/userManagementService';
 import { UserProfile } from './types/user';
+import MapPage from './pages/map/MapPage';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const isAuthenticated = authService.isAuthenticated();
@@ -82,7 +83,7 @@ const App: React.FC = () => {
                     />
                     
                     <Route path="/profile" element={<HomePage />} />
-                    <Route path="/map" element={<HomePage />} />
+                    <Route path="/map" element={<MapPage />} />
                     <Route path="/chat" element={<HomePage />} />
                     <Route path="/flags" element={<HomePage />} />
 
