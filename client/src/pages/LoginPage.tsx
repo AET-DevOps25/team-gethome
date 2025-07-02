@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
 
     try {
       await authService.login(formData.email, formData.password);
-      navigate('/dashboard');
+      navigate('/profile');
     } catch (err) {
       setError('Invalid email or password');
     }
