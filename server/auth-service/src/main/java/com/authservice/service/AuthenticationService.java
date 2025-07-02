@@ -38,15 +38,16 @@ public class AuthenticationService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)  // Set default role
                 .provider(AuthProvider.LOCAL)
-                .emailVerified(false)
+                .emailVerified(true)
+                //.emailVerified(false)
                 .build();
 
         userRepository.save(user);
-        try {
-            emailService.sendVerificationEmail(user);
-        } catch (MessagingException e) {
-            throw new RuntimeException("Failed to send verification email", e);
-        }
+        //try {
+        //    emailService.sendVerificationEmail(user);
+        //} catch (MessagingException e) {
+        //    throw new RuntimeException("Failed to send verification email", e);
+        //}
 
         var jwtToken = jwtService.generateToken(user);
         return AuthenticationResponse.builder()
@@ -54,7 +55,8 @@ public class AuthenticationService {
                 .email(user.getEmail())
                 .name(user.getName())
                 .enabled(user.isEnabled())
-                .emailVerified(user.isEmailVerified())
+                .emailVerified(true)
+                //.emailVerified(user.isEmailVerified())
                 .build();
     }
 
