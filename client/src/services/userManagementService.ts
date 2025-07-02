@@ -12,7 +12,7 @@ class UserManagementService {
     private baseUrl: string;
 
     constructor() {
-        this.baseUrl = process.env.REACT_APP_USER_MANAGEMENT_SERVICE_URL || 'http://localhost:8082/api';
+        this.baseUrl = process.env.REACT_APP_USER_MANAGEMENT_SERVICE_URL || 'http://localhost:8084/api';
     }
 
     private getAuthHeader() {

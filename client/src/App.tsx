@@ -6,12 +6,14 @@ import theme from './theme';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ProfileCompletionPage from './pages/user/ProfileCompletionPage';
-import DashboardPage from './pages/dashboard/DashboardPage';
 import HomePage from './pages/home/HomePage';
 import ProfileSettingsPage from './pages/profile/ProfileSettingsPage';
 import { authService } from './services/authService';
 import { userManagementService } from './services/userManagementService';
 import { UserProfile } from './types/user';
+import MapPage from './pages/map/MapPage';
+import ChatPage from './pages/chat/ChatPage';
+import ReportsPage from './pages/reports/ReportsPage';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const isAuthenticated = authService.isAuthenticated();
@@ -64,37 +66,64 @@ const App: React.FC = () => {
                             </PrivateRoute>
                         }
                     />
-                    <Route
-                        path="/dashboard"
-                        element={
-                            <PrivateRoute>
-                                <ProfileCheckRoute>
-                                    <DashboardPage />
-                                </ProfileCheckRoute>
-                            </PrivateRoute>
-                        }
-                    />
+                   
                     <Route
                         path="/home"
                         element={
-                            <PrivateRoute>
-                                <ProfileCheckRoute>
-                                    <HomePage />
-                                </ProfileCheckRoute>
-                            </PrivateRoute>
+                            <ProfileCheckRoute>
+                                <HomePage />
+                            </ProfileCheckRoute>
                         }
                     />
+                    
                     <Route
-                        path="/profile"
-                        element={
-                            <PrivateRoute>
-                                <ProfileCheckRoute>
-                                    <ProfileSettingsPage />
-                                </ProfileCheckRoute>
-                            </PrivateRoute>
-                        }
+                    path="/profile"
+                    element={
+                        <ProfileCheckRoute>
+                        <HomePage />
+                        </ProfileCheckRoute>
+                    }
                     />
-                    <Route path="/" element={<Navigate to="/home" replace />} />
+
+                    <Route
+                    path="/map"
+                    element={
+                        <ProfileCheckRoute>
+                        <MapPage />
+                        </ProfileCheckRoute>
+                    }
+                    />
+
+                    <Route
+                    path="/chat"
+                    element={
+                        <ProfileCheckRoute>
+                        <ChatPage />
+                        </ProfileCheckRoute>
+                    }
+                    />
+                    
+                    <Route
+                    path="/reports"
+                    element={
+                        <ProfileCheckRoute>
+                        <ReportsPage />
+                        </ProfileCheckRoute>
+                    }
+                    />
+
+                    <Route path="/" element={
+                        <ProfileCheckRoute>
+                            <Navigate to="/profile" replace />
+                        </ProfileCheckRoute>
+                    } 
+                    />
+                    <Route path="*" element={
+                        <ProfileCheckRoute>
+                            <Navigate to="/profile" replace />
+                        </ProfileCheckRoute>
+                    } />
+
                 </Routes>
             </Router>
         </ThemeProvider>

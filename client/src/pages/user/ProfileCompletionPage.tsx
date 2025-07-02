@@ -99,7 +99,7 @@ const ProfileCompletionPage: React.FC = () => {
             };
 
             await userManagementService.createUserProfile(formData);
-            navigate('/dashboard');
+            navigate('/profile');
         } catch (err) {
             console.error('Error creating user profile:', err);
             if (err instanceof Error) {
