@@ -32,7 +32,7 @@ const LoginPage: React.FC = () => {
             if (needsProfile) {
                 navigate('/profile-completion');
             } else {
-                navigate('/dashboard');
+                navigate('/profile');
             }
         } catch (error: any) {
             console.error('Login error:', error);

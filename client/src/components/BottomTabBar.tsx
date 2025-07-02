@@ -11,7 +11,7 @@ const tabs = [
     { name: 'Profile', icon: UserIcon, path: '/profile' },
     { name: 'Map', icon: MapIcon, path: '/map' },
     { name: 'Chat', icon: ChatBubbleLeftRightIcon, path: '/chat' },
-    { name: 'Flags', icon: FlagIcon, path: '/flags' },
+    { name: 'Reports', icon: FlagIcon, path: '/reports' },
 ];
 
 interface BottomTabBarProps {
