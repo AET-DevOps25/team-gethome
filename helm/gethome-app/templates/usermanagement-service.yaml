@@ -77,4 +77,4 @@ spec:
       targetPort: {{ .Values.services.usermanagement-service.service.targetPort }}
       protocol: TCP
       name: http
-{{- end }}
+{{- end }} 
