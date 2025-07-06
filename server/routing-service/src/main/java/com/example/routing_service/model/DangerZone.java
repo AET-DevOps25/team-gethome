@@ -44,6 +44,7 @@ public class DangerZone {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Location {
+        @Builder.Default
         private String type = "Point";
         private double[] coordinates; // [longitude, latitude]
     }

@@ -25,6 +25,7 @@ public class RouteRequest {
     
     @DecimalMin(value = "0.0", message = "Safety preference must be between 0.0 and 1.0")
     @DecimalMax(value = "1.0", message = "Safety preference must be between 0.0 and 1.0")
+    @Builder.Default
     private Double safetyPreference = 0.8; // Default to high safety preference
     
     private String routeName;

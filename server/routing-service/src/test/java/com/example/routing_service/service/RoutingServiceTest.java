@@ -75,6 +75,16 @@ class RoutingServiceTest {
             .estimatedDuration(1800)
             .safetyScore(0.85)
             .status(Route.RouteStatus.ACTIVE)
+            .startLocation(Route.Location.builder()
+                .latitude(40.7128)
+                .longitude(-74.0060)
+                .address("New York, NY")
+                .build())
+            .endLocation(Route.Location.builder()
+                .latitude(40.7589)
+                .longitude(-73.9851)
+                .address("Times Square, NY")
+                .build())
             .build();
     }
 

@@ -90,7 +90,7 @@ class DangerZoneServiceTest {
         double radius = 1000;
         List<DangerZone> expectedZones = Arrays.asList(mockDangerZone);
 
-        when(dangerZoneRepository.findNearbyActiveDangerZones(longitude, latitude, radius, any()))
+        when(dangerZoneRepository.findNearbyActiveDangerZones(eq(longitude), eq(latitude), eq(radius), any()))
             .thenReturn(expectedZones);
 
         // When
