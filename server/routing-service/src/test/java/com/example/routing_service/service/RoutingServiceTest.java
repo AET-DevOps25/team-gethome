@@ -85,6 +85,18 @@ class RoutingServiceTest {
                 .longitude(-73.9851)
                 .address("Times Square, NY")
                 .build())
+            .segments(Arrays.asList(
+                Route.RouteSegment.builder()
+                    .distance(1500.0)
+                    .duration(1800)
+                    .instructions("Walk straight")
+                    .coordinates(Arrays.asList(
+                        new Double[]{40.7128, -74.0060},
+                        new Double[]{40.7589, -73.9851}
+                    ))
+                    .build()
+            ))
+            .avoidedDangerZones(Arrays.asList("zone-1"))
             .build();
     }
 
