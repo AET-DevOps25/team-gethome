@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.DecimalMax;
 import java.util.List;
+import com.example.routing_service.model.DangerZone;
 
 @Data
 @Builder
@@ -22,16 +23,12 @@ public class DangerZoneRequest {
     private String description;
     
     @NotNull(message = "Danger level is required")
-    private DangerLevel dangerLevel;
+    private DangerZone.DangerLevel dangerLevel;
     
     @NotNull(message = "Location is required")
     private Location location;
     
     private List<String> tags;
-    
-    public enum DangerLevel {
-        LOW, MEDIUM, HIGH, CRITICAL
-    }
     
     @Data
     @Builder

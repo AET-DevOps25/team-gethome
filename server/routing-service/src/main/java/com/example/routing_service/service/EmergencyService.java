@@ -2,6 +2,8 @@ package com.example.routing_service.service;
 
 import com.example.routing_service.client.MessageServiceClient;
 import com.example.routing_service.client.UserManagementClient;
+import com.example.routing_service.dto.EmergencyNotificationRequest;
+import com.example.routing_service.dto.EmergencyNotificationResponse;
 import com.example.routing_service.model.DangerZone;
 import com.example.routing_service.model.Route;
 import com.example.routing_service.repository.RouteRepository;
@@ -23,48 +25,83 @@ public class EmergencyService {
     private final MessageServiceClient messageServiceClient;
     private final UserManagementClient userManagementClient;
 
-    public void handleEmergency(String userId, double latitude, double longitude, 
-                               String audioSnippet, String reason) {
-        log.warn("Emergency triggered for user: {} at location ({}, {})", userId, latitude, longitude);
+    public EmergencyNotificationResponse triggerEmergency(String userId, 
+                                                         String reason, 
+                                                         double latitude, 
+                                                         double longitude, 
+                                                         String location,
+                                                         String audioSnippet,
+                                                         String authToken) {
+        log.warn("Emergency triggered for user: {} at location: {},{}", userId, latitude, longitude);
         
         try {
             // Get user's emergency contacts
             UserManagementClient.EmergencyContactsResponse contactsResponse = 
-                userManagementClient.getEmergencyContacts(userId, "Bearer " + getAuthToken());
+                userManagementClient.getEmergencyContacts(userId, "Bearer " + authToken);
             
-            List<String> contactIds = contactsResponse.emergencyContacts().stream()
-                .map(UserManagementClient.EmergencyContact::id)
-                .collect(Collectors.toList());
-            
-            if (contactIds.isEmpty()) {
+            if (contactsResponse.emergencyContacts().isEmpty()) {
                 log.warn("No emergency contacts found for user: {}", userId);
-                return;
+                return EmergencyNotificationResponse.builder()
+                    .id("no-contacts")
+                    .userId(userId)
+                    .status("NO_CONTACTS")
+                    .message("No emergency contacts found")
+                    .build();
             }
             
-            // Get nearby danger zones for context
-            List<DangerZone> nearbyZones = dangerZoneService.getNearbyDangerZones(latitude, longitude, 500);
+            // Create emergency notification request
+            EmergencyNotificationRequest request = EmergencyNotificationRequest.builder()
+                .userId(userId)
+                .message("Emergency triggered: " + reason)
+                .latitude(latitude)
+                .longitude(longitude)
+                .location(location)
+                .audioSnippet(audioSnippet)
+                .emergencyType("MANUAL")
+                .reason(reason)
+                .emergencyContactIds(contactsResponse.emergencyContacts().stream()
+                    .map(UserManagementClient.EmergencyContact::id)
+                    .toList())
+                .build();
             
-            // Build emergency message
-            String message = buildEmergencyMessage(userId, latitude, longitude, reason, nearbyZones);
-            
-            // Send emergency notification
-            MessageServiceClient.EmergencyNotificationRequest notificationRequest = 
+            // Map DTO to client record
+            MessageServiceClient.EmergencyNotificationRequest clientRequest =
                 new MessageServiceClient.EmergencyNotificationRequest(
-                    userId, message, latitude, longitude, audioSnippet, contactIds
+                    request.getUserId(),
+                    request.getMessage(),
+                    request.getLatitude(),
+                    request.getLongitude(),
+                    request.getAudioSnippet(),
+                    request.getEmergencyContactIds()
                 );
+            // Send emergency notification via message service
+            MessageServiceClient.EmergencyNotificationResponse clientResponse = messageServiceClient.sendEmergencyNotification(clientRequest, "Bearer " + authToken);
+            EmergencyNotificationResponse response = EmergencyNotificationResponse.builder()
+                .id(clientResponse.id())
+                .status(clientResponse.status())
+                .message(clientResponse.message())
+                .userId(userId)
+                .triggeredAt(java.time.LocalDateTime.now())
+                .build();
             
-            MessageServiceClient.EmergencyNotificationResponse response = 
-                messageServiceClient.sendEmergencyNotification(notificationRequest, "Bearer " + getAuthToken());
-            
-            log.info("Emergency notification sent successfully: {}", response.id());
-            
-            // Update active routes to mark as potentially affected
-            markRoutesAsAffected(userId, latitude, longitude);
+            log.info("Emergency notification sent successfully for user: {} with status: {}", userId, response.getStatus());
+            return response;
             
         } catch (Exception e) {
-            log.error("Failed to handle emergency for user: {}", userId, e);
-            throw new RuntimeException("Emergency handling failed", e);
+            log.error("Failed to trigger emergency for user: {}", userId, e);
+            throw new RuntimeException("Emergency notification failed", e);
         }
+    }
+
+    public EmergencyNotificationResponse triggerAudioEmergency(String userId, 
+                                                              double latitude, 
+                                                              double longitude, 
+                                                              String location,
+                                                              String audioSnippet,
+                                                              String authToken) {
+        log.warn("Audio-based emergency triggered for user: {} at location: {},{}", userId, latitude, longitude);
+        
+        return triggerEmergency(userId, "Audio-based emergency detection", latitude, longitude, location, audioSnippet, authToken);
     }
 
     private String buildEmergencyMessage(String userId, double latitude, double longitude, 
@@ -146,5 +183,12 @@ public class EmergencyService {
                 userId, latitude, longitude);
         
         handleEmergency(userId, latitude, longitude, null, "Manual emergency button pressed");
+    }
+
+    private void handleEmergency(String userId, double latitude, double longitude, String audioSnippet, String reason) {
+        // Use a placeholder location and auth token for now
+        String location = "Unknown";
+        String authToken = getAuthToken();
+        triggerEmergency(userId, reason, latitude, longitude, location, audioSnippet, authToken);
     }
 } 

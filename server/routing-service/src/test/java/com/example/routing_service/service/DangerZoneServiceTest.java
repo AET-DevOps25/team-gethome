@@ -36,7 +36,7 @@ class DangerZoneServiceTest {
         request = DangerZoneRequest.builder()
             .name("Dark Alley")
             .description("Poorly lit alley with suspicious activity")
-            .dangerLevel(DangerZoneRequest.DangerLevel.MEDIUM)
+            .dangerLevel(DangerZone.DangerLevel.MEDIUM)
             .location(DangerZoneRequest.Location.builder()
                 .latitude(40.7128)
                 .longitude(-74.0060)

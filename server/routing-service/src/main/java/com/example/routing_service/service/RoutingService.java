@@ -150,11 +150,17 @@ public class RoutingService {
         // Convert segments
         List<Route.RouteSegment> segments = new ArrayList<>();
         for (OpenRouteServiceClient.OpenRouteSegment orsSegment : properties.segments()) {
+            double[][] wayPoints = orsSegment.way_points();
+            List<Double[]> coordinates = new ArrayList<>();
+            for (double[] point : wayPoints) {
+                Double[] boxed = Arrays.stream(point).boxed().toArray(Double[]::new);
+                coordinates.add(boxed);
+            }
             Route.RouteSegment segment = Route.RouteSegment.builder()
                 .distance(orsSegment.distance())
                 .duration((int) orsSegment.duration())
                 .instructions(orsSegment.instruction())
-                .coordinates(Arrays.asList(orsSegment.way_points()))
+                .coordinates(coordinates)
                 .build();
             segments.add(segment);
         }
