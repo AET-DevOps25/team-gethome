@@ -1,6 +1,7 @@
 package com.authservice.service;
 
 import com.authservice.model.User;
+import com.authservice.security.JwtService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,10 +85,12 @@ class EmailServiceTest {
         // Arrange
         String to = "test@example.com";
         String subject = "Test Subject";
-        String content = "Test Content";
+        String templateName = "test-template";
+        Context context = new Context();
+        context.setVariable("testVar", "testValue");
 
         // Act
-        emailService.sendEmail(to, subject, content);
+        emailService.sendEmail(to, subject, templateName, context);
 
         // Assert
         verify(mailSender).send(any(MimeMessage.class));
@@ -96,12 +99,13 @@ class EmailServiceTest {
     @Test
     void sendEmail_WhenMessagingException_ShouldThrowException() throws MessagingException {
         // Arrange
-        doThrow(new MessagingException("Failed to send email"))
+        Context context = new Context();
+        doThrow(new RuntimeException("Failed to send email"))
                 .when(mailSender).send(any(MimeMessage.class));
 
         // Act & Assert
-        assertThrows(MessagingException.class, () ->
-            emailService.sendEmail("test@example.com", "Test Subject", "Test Content")
+        assertThrows(RuntimeException.class, () ->
+            emailService.sendEmail("test@example.com", "Test Subject", "test-template", context)
         );
     }
 }

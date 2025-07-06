@@ -8,6 +8,7 @@ import {
     Grid,
     Paper,
     Stack,
+    Chip,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
@@ -130,6 +131,30 @@ const LandingPage: React.FC = () => {
                     </Box>
                 </Container>
             </Box>
+
+            <Container maxWidth="lg" sx={{ mb: 8 }}>
+                <Typography variant="h3" component="h2" align="center" gutterBottom>
+                    Features
+                </Typography>
+                <Grid container spacing={4} sx={{ mt: 2 }}>
+                    <Grid item xs={12} md={6}>
+                        <Chip
+                            label="Safe Route Planning"
+                            color="primary"
+                            variant="filled"
+                            sx={{ mb: 2 }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <Chip
+                            label="AI Safety Companion"
+                            color="secondary"
+                            variant="filled"
+                            sx={{ mb: 2 }}
+                        />
+                    </Grid>
+                </Grid>
+            </Container>
         </Box>
     );
 };

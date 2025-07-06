@@ -11,17 +11,44 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    IconButton,
     Paper,
     CircularProgress,
+    Stepper,
+    Step,
+    StepLabel,
+    Card,
+    CardContent,
+    Alert,
+    IconButton,
+    Chip,
 } from '@mui/material';
+import {
+    Person,
+    Phone,
+    Email,
+    Security,
+    CheckCircle,
+    ArrowForward,
+    ArrowBack,
+    Add,
+    Delete,
+} from '@mui/icons-material';
 import { userManagementService } from '../../services/userManagementService';
 import { authService } from '../../services/authService';
 import { UserCreationRequest, EmergencyContact, Preferences } from '../../types/user';
 import axios from 'axios';
 
+const steps = [
+    'Basic Information',
+    'Contact Details',
+    'Emergency Contacts',
+    'Safety Preferences',
+    'Review & Complete'
+];
+
 const ProfileCompletionPage: React.FC = () => {
     const navigate = useNavigate();
+    const [activeStep, setActiveStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [displayName, setDisplayName] = useState('');
@@ -57,6 +84,16 @@ const ProfileCompletionPage: React.FC = () => {
         enableSOS: true
     };
 
+    const handleNext = () => {
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
+        setError(null);
+    };
+
+    const handleBack = () => {
+        setActiveStep((prevActiveStep) => prevActiveStep - 1);
+        setError(null);
+    };
+
     const handleAddContact = () => {
         setEmergencyContacts([
             ...emergencyContacts,
@@ -74,13 +111,29 @@ const ProfileCompletionPage: React.FC = () => {
         setEmergencyContacts(newContacts);
     };
 
+    const isStepValid = (step: number) => {
+        switch (step) {
+            case 0:
+                return displayName && gender && ageGroup;
+            case 1:
+                return phoneNr && preferredContactMethod;
+            case 2:
+                return emergencyContacts.every(contact => 
+                    contact.name && contact.email && contact.phone
+                );
+            case 3:
+                return true; // Preferences are pre-filled
+            default:
+                return false;
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
         try {
-            // First check if we have a valid token
             const currentUser = await authService.getCurrentUser();
             if (!currentUser) {
                 throw new Error('No authenticated user found');
@@ -104,14 +157,12 @@ const ProfileCompletionPage: React.FC = () => {
             console.error('Error creating user profile:', err);
             if (err instanceof Error) {
                 if (err.message.includes('Authentication failed')) {
-                    // If auth failed, redirect to login
                     navigate('/login');
                     return;
                 }
                 setError(err.message);
             } else if (axios.isAxiosError(err)) {
                 if (err.response?.status === 403) {
-                    // If forbidden, redirect to login
                     navigate('/login');
                     return;
                 }
@@ -124,88 +175,110 @@ const ProfileCompletionPage: React.FC = () => {
         }
     };
 
-    return (
-        <Container maxWidth="md" sx={{ mt: 4 }}>
-            <Paper sx={{ p: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    Complete Your Profile
-                </Typography>
-                <Typography variant="body1" color="text.secondary" paragraph>
-                    Please provide the following information to complete your profile.
-                </Typography>
+    const renderStepContent = (step: number) => {
+        switch (step) {
+            case 0:
+                return (
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" mb={2}>
+                                <Person sx={{ mr: 1, color: 'primary.main' }} />
+                                <Typography variant="h6">Basic Information</Typography>
+                            </Box>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12}>
+                                    <TextField
+                                        fullWidth
+                                        label="Display Name"
+                                        value={displayName}
+                                        onChange={(e) => setDisplayName(e.target.value)}
+                                        required
+                                        helperText="This is how you'll appear in the app"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <FormControl fullWidth required>
+                                        <InputLabel>Gender</InputLabel>
+                                        <Select
+                                            value={gender}
+                                            label="Gender"
+                                            onChange={(e) => setGender(e.target.value)}
+                                        >
+                                            <MenuItem value="MALE">Male</MenuItem>
+                                            <MenuItem value="FEMALE">Female</MenuItem>
+                                            <MenuItem value="OTHER">Other</MenuItem>
+                                            <MenuItem value="PREFER_NOT_TO_SAY">Prefer not to say</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <FormControl fullWidth required>
+                                        <InputLabel>Age Group</InputLabel>
+                                        <Select
+                                            value={ageGroup}
+                                            label="Age Group"
+                                            onChange={(e) => setAgeGroup(e.target.value)}
+                                        >
+                                            <MenuItem value="TEENAGER">Under 18</MenuItem>
+                                            <MenuItem value="YOUNG_ADULT">18-24</MenuItem>
+                                            <MenuItem value="ADULT">25-64</MenuItem>
+                                            <MenuItem value="ELDERLY">65+</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                            </Grid>
+                        </CardContent>
+                    </Card>
+                );
 
-                <form onSubmit={handleSubmit}>
-                    <Grid container spacing={3}>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                label="Display Name"
-                                value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
-                                required
-                            />
-                        </Grid>
+            case 1:
+                return (
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" mb={2}>
+                                <Phone sx={{ mr: 1, color: 'primary.main' }} />
+                                <Typography variant="h6">Contact Details</Typography>
+                            </Box>
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} md={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Phone Number"
+                                        value={phoneNr}
+                                        onChange={(e) => setPhoneNr(e.target.value)}
+                                        required
+                                        helperText="For emergency notifications"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <FormControl fullWidth required>
+                                        <InputLabel>Preferred Contact Method</InputLabel>
+                                        <Select
+                                            value={preferredContactMethod}
+                                            label="Preferred Contact Method"
+                                            onChange={(e) => setPreferredContactMethod(e.target.value)}
+                                        >
+                                            <MenuItem value="EMAIL">Email</MenuItem>
+                                            <MenuItem value="SMS">SMS</MenuItem>
+                                            <MenuItem value="WHATSAPP">WhatsApp</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                            </Grid>
+                        </CardContent>
+                    </Card>
+                );
 
-                        <Grid item xs={12} md={6}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Gender</InputLabel>
-                                <Select
-                                    value={gender}
-                                    label="Gender"
-                                    onChange={(e) => setGender(e.target.value)}
-                                >
-                                    <MenuItem value="MALE">Male</MenuItem>
-                                    <MenuItem value="FEMALE">Female</MenuItem>
-                                    <MenuItem value="OTHER">Other</MenuItem>
-                                    <MenuItem value="PREFER_NOT_TO_SAY">Prefer not to say</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12} md={6}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Age Group</InputLabel>
-                                <Select
-                                    value={ageGroup}
-                                    label="Age Group"
-                                    onChange={(e) => setAgeGroup(e.target.value)}
-                                >
-                                    <MenuItem value="TEENAGER">Under 18</MenuItem>
-                                    <MenuItem value="YOUNG_ADULT">18-24</MenuItem>
-                                    <MenuItem value="ADULT">25-64</MenuItem>
-                                    <MenuItem value="ELDERLY">65+</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12} md={6}>
-                            <TextField
-                                fullWidth
-                                label="Phone Number"
-                                value={phoneNr}
-                                onChange={(e) => setPhoneNr(e.target.value)}
-                                required
-                            />
-                        </Grid>
-
-                        <Grid item xs={12} md={6}>
-                            <FormControl fullWidth required>
-                                <InputLabel>Preferred Contact Method</InputLabel>
-                                <Select
-                                    value={preferredContactMethod}
-                                    label="Preferred Contact Method"
-                                    onChange={(e) => setPreferredContactMethod(e.target.value)}
-                                >
-                                    <MenuItem value="EMAIL">Email</MenuItem>
-                                    <MenuItem value="SMS">SMS</MenuItem>
-                                    <MenuItem value="WHATSAPP">WhatsApp</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                            <Typography variant="h6" gutterBottom>
-                                Emergency Contacts
+            case 2:
+                return (
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" mb={2}>
+                                <Security sx={{ mr: 1, color: 'primary.main' }} />
+                                <Typography variant="h6">Emergency Contacts</Typography>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" mb={2}>
+                                Add trusted contacts who will be notified in case of emergency
                             </Typography>
                             {emergencyContacts.map((contact, index) => (
                                 <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
@@ -252,46 +325,172 @@ const ProfileCompletionPage: React.FC = () => {
                                             </FormControl>
                                         </Grid>
                                         <Grid item xs={12} md={1}>
-                                            <Button
+                                            <IconButton
                                                 onClick={() => handleRemoveContact(index)}
                                                 disabled={emergencyContacts.length === 1}
                                                 color="error"
-                                                size="small"
                                             >
-                                                Remove
-                                            </Button>
+                                                <Delete />
+                                            </IconButton>
                                         </Grid>
                                     </Grid>
                                 </Box>
                             ))}
                             <Button
                                 variant="outlined"
+                                startIcon={<Add />}
                                 onClick={handleAddContact}
                                 sx={{ mt: 2 }}
                             >
                                 Add Emergency Contact
                             </Button>
-                        </Grid>
+                        </CardContent>
+                    </Card>
+                );
 
-                        {error && (
-                            <Grid item xs={12}>
-                                <Typography color="error">{error}</Typography>
+            case 3:
+                return (
+                    <Card>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" mb={2}>
+                                <Security sx={{ mr: 1, color: 'primary.main' }} />
+                                <Typography variant="h6">Safety Preferences</Typography>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" mb={3}>
+                                These settings help us provide better safety features
+                            </Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12}>
+                                    <Chip 
+                                        label="Share location with emergency contacts" 
+                                        color="primary" 
+                                        variant="outlined"
+                                    />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Chip 
+                                        label="Auto-notify contacts on delays" 
+                                        color="primary" 
+                                        variant="outlined"
+                                    />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Chip 
+                                        label="Enable SOS feature" 
+                                        color="primary" 
+                                        variant="outlined"
+                                    />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Chip 
+                                        label="15-minute check-in intervals" 
+                                        color="primary" 
+                                        variant="outlined"
+                                    />
+                                </Grid>
                             </Grid>
-                        )}
+                        </CardContent>
+                    </Card>
+                );
 
-                        <Grid item xs={12}>
+            case 4:
+                return (
+                    <Card>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Review Your Profile
+                            </Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" color="text.secondary">Name</Typography>
+                                    <Typography variant="body1">{displayName}</Typography>
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" color="text.secondary">Gender</Typography>
+                                    <Typography variant="body1">{gender}</Typography>
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" color="text.secondary">Age Group</Typography>
+                                    <Typography variant="body1">{ageGroup}</Typography>
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" color="text.secondary">Phone</Typography>
+                                    <Typography variant="body1">{phoneNr}</Typography>
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Typography variant="subtitle2" color="text.secondary">Emergency Contacts</Typography>
+                                    {emergencyContacts.map((contact, index) => (
+                                        <Typography key={index} variant="body2">
+                                            {contact.name} - {contact.email}
+                                        </Typography>
+                                    ))}
+                                </Grid>
+                            </Grid>
+                        </CardContent>
+                    </Card>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
+            <Paper sx={{ p: 4 }}>
+                <Typography variant="h4" gutterBottom align="center">
+                    Welcome to GetHome! 🏠
+                </Typography>
+                <Typography variant="body1" color="text.secondary" paragraph align="center">
+                    Let's set up your profile to keep you safe on your journeys
+                </Typography>
+
+                <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+                    {steps.map((label) => (
+                        <Step key={label}>
+                            <StepLabel>{label}</StepLabel>
+                        </Step>
+                    ))}
+                </Stepper>
+
+                {error && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {error}
+                    </Alert>
+                )}
+
+                {renderStepContent(activeStep)}
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                    <Button
+                        disabled={activeStep === 0}
+                        onClick={handleBack}
+                        startIcon={<ArrowBack />}
+                    >
+                        Back
+                    </Button>
+                    <Box>
+                        {activeStep === steps.length - 1 ? (
                             <Button
-                                type="submit"
                                 variant="contained"
-                                color="primary"
-                                fullWidth
-                                disabled={loading}
+                                onClick={handleSubmit}
+                                disabled={loading || !isStepValid(activeStep)}
+                                startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
                             >
-                                {loading ? <CircularProgress size={24} /> : 'Complete Profile'}
+                                {loading ? 'Creating Profile...' : 'Complete Setup'}
                             </Button>
-                        </Grid>
-                    </Grid>
-                </form>
+                        ) : (
+                            <Button
+                                variant="contained"
+                                onClick={handleNext}
+                                disabled={!isStepValid(activeStep)}
+                                endIcon={<ArrowForward />}
+                            >
+                                Next
+                            </Button>
+                        )}
+                    </Box>
+                </Box>
             </Paper>
         </Container>
     );

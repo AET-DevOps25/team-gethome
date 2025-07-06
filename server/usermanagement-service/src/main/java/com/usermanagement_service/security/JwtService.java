@@ -84,4 +84,22 @@ public class JwtService {
             throw e;
         }
     }
+
+    public String generateToken(String userId, String email) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("sub", userId);
+        claims.put("email", email);
+        return generateToken(claims, userId);
+    }
+
+    public String generateToken(Map<String, Object> extraClaims, String subject) {
+        return Jwts
+            .builder()
+            .setClaims(extraClaims)
+            .setSubject(subject)
+            .setIssuedAt(new Date(System.currentTimeMillis()))
+            .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+            .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+            .compact();
+    }
 } 

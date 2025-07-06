@@ -2,25 +2,32 @@ package com.usermanagement_service.service;
 
 import com.usermanagement_service.dto.*;
 import com.usermanagement_service.model.*;
-import com.usermanagement_service.repository.UserRepository;
+import com.usermanagement_service.repository.AuthUserRepository;
 import com.usermanagement_service.repository.EmergencyContactRepository;
+import com.usermanagement_service.repository.UserProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import java.util.List;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserManagementServiceTest {
 
     @Mock
-    private UserRepository userRepository;
+    private AuthUserRepository authUserRepository;
+
+    @Mock
+    private UserProfileRepository userProfileRepository;
 
     @Mock
     private EmergencyContactRepository emergencyContactRepository;
@@ -31,149 +38,267 @@ class UserManagementServiceTest {
     @Mock
     private ProfilePictureGenerator profilePictureGenerator;
 
+    @InjectMocks
     private UserManagementService userManagementService;
 
-    private UUID userId;
-    private User testUser;
-    private UserCreationRequest creationRequest;
-    private UserUpdateRequest updateRequest;
+    private String userId;
+    private AuthUser testUser;
+    private com.usermanagement_service.model.UserProfile testProfile;
 
     @BeforeEach
     void setUp() {
-        userManagementService = new UserManagementService(userRepository, emergencyContactRepository, userCodeGenerator, profilePictureGenerator);
+        userId = "test-user-123";
         
-        userId = UUID.randomUUID();
-        testUser = User.builder()
+        testUser = AuthUser.builder()
             .id(userId)
             .email("test@example.com")
-            .alias("Test User")
-            .userCode("ABC123")
-            .gender(Gender.MALE)
-            .ageGroup(AgeGroup.ADULT)
-            .preferences(new Preferences(AiTone.FRIENDLY, Talkativeness.TALKATIVE, SocialDistance.INTERESTED, List.of("sports")))
-            .preferredContactMethod(PreferredContactMethod.EMAIL)
+            .password("password")
+            .provider("LOCAL")
+            .providerId(userId)
+            .enabled(true)
+            .emailVerified(true)
             .build();
 
-        creationRequest = new UserCreationRequest(
-            "Test User",
-            Gender.MALE,
-            AgeGroup.ADULT,
-            new Preferences(AiTone.FRIENDLY, Talkativeness.TALKATIVE, SocialDistance.INTERESTED, List.of("sports")),
-            PreferredContactMethod.EMAIL,
-            null
-        );
+        Map<String, Object> prefsMap = new HashMap<>();
+        prefsMap.put("shareLocation", true);
+        prefsMap.put("notifyOnDelay", true);
+        prefsMap.put("autoNotifyContacts", true);
+        prefsMap.put("checkInInterval", 30);
+        prefsMap.put("enableSOS", true);
 
-        updateRequest = new UserUpdateRequest(
-            "Updated User",
-            Gender.FEMALE,
-            AgeGroup.YOUNG_ADULT,
-            new Preferences(AiTone.NEUTRAL, Talkativeness.LISTENING, SocialDistance.DISTANT, List.of("music")),
-            PreferredContactMethod.SMS,
-            "+1234567890"
-        );
+        Preferences preferences = Preferences.builder()
+            .shareLocation(true)
+            .notifyOnDelay(true)
+            .autoNotifyContacts(true)
+            .checkInInterval(30)
+            .enableSOS(true)
+            .preferences(prefsMap)
+            .build();
+
+        testProfile = com.usermanagement_service.model.UserProfile.builder()
+            .id("profile-123")
+            .userId(userId)
+            .alias("TestUser")
+            .gender(Gender.NO_INFO)
+            .ageGroup(AgeGroup.ADULT)
+            .preferences(preferences)
+            .preferredContactMethod(PreferredContactMethod.EMAIL)
+            .phoneNr("1234567890")
+            .profilePictureUrl("http://example.com/avatar.jpg")
+            .build();
     }
 
     @Test
-    void getUserProfile_WhenUserExists_ReturnsUserProfile() {
-        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    void getUserProfile_UserExists_ReturnsProfile() {
+        // Given
+        when(authUserRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(testProfile));
+        when(emergencyContactRepository.findByRequesterIdAndStatus(userId, RequestStatus.ACCEPTED))
+            .thenReturn(java.util.List.of());
 
-        UserProfile profile = userManagementService.getUserProfile(userId);
+        // When
+        UserProfileResponse profile = userManagementService.getUserProfile(userId);
 
+        // Then
         assertNotNull(profile);
-        assertEquals(userId, profile.id());
-        assertEquals("Test User", profile.alias());
-        assertEquals("test@example.com", profile.email());
+        assertEquals(userId, profile.getUserId());
+        assertEquals("test@example.com", profile.getEmail());
+        assertEquals("TestUser", profile.getAlias());
     }
 
     @Test
-    void getUserProfile_WhenUserDoesNotExist_ThrowsException() {
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+    void getUserProfile_UserNotExists_ThrowsException() {
+        // Given
+        when(authUserRepository.findById(userId)).thenReturn(Optional.empty());
 
+        // When & Then
         assertThrows(RuntimeException.class, () -> userManagementService.getUserProfile(userId));
     }
 
     @Test
-    void createUser_WhenUserDoesNotExist_CreatesNewUser() {
-        when(userRepository.existsById(userId)).thenReturn(false);
-        when(userCodeGenerator.generate()).thenReturn("ABC123");
-        when(profilePictureGenerator.generate()).thenReturn("https://example.com/avatar.png");
-        when(userRepository.save(any(User.class))).thenReturn(testUser);
-
-        UserProfile profile = userManagementService.createUser(userId, "test@example.com", creationRequest);
-
-        assertNotNull(profile);
-        assertEquals(userId, profile.id());
-        assertEquals("Test User", profile.alias());
-        verify(userRepository).save(any(User.class));
-    }
-
-    @Test
-    void createUser_WhenUserExists_ThrowsException() {
-        when(userRepository.existsById(userId)).thenReturn(true);
-
-        assertThrows(RuntimeException.class, 
-            () -> userManagementService.createUser(userId, "test@example.com", creationRequest));
-    }
-
-    @Test
-    void updateUser_WhenUserExists_UpdatesUser() {
-        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(userRepository.save(any(User.class))).thenReturn(testUser);
-
-        UserProfile profile = userManagementService.updateUser(userId, updateRequest);
-
-        assertNotNull(profile);
-        verify(userRepository).save(any(User.class));
-    }
-
-    @Test
-    void updateUser_WhenUserDoesNotExist_ThrowsException() {
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        assertThrows(RuntimeException.class, () -> userManagementService.updateUser(userId, updateRequest));
-    }
-
-    @Test
-    void addEmergencyContact_WhenContactExists_ReturnsResponse() {
-        UUID contactId = UUID.randomUUID();
-        User contactUser = User.builder()
-            .id(contactId)
-            .userCode("XYZ789")
+    void createUserProfile_Success() {
+        // Given
+        UserCreationRequest creationRequest = UserCreationRequest.builder()
+            .id(userId)
+            .alias("NewUser")
+            .gender(Gender.NO_INFO)
+            .ageGroup(AgeGroup.ADULT)
+            .preferences(new HashMap<>())
+            .preferredContactMethod(PreferredContactMethod.EMAIL)
+            .phoneNr("1234567890")
+            .profilePictureUrl("http://example.com/avatar.jpg")
             .build();
 
-        when(userRepository.findByUserCode("XYZ789")).thenReturn(Optional.of(contactUser));
+        when(authUserRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+        when(userProfileRepository.save(any(com.usermanagement_service.model.UserProfile.class)))
+            .thenReturn(testProfile);
+
+        // When
+        UserProfileResponse profile = userManagementService.createUserProfile(creationRequest);
+
+        // Then
+        assertNotNull(profile);
+        assertEquals(userId, profile.getUserId());
+        verify(userProfileRepository).save(any(com.usermanagement_service.model.UserProfile.class));
+    }
+
+    @Test
+    void createUserProfile_ProfileAlreadyExists_ThrowsException() {
+        // Given
+        UserCreationRequest creationRequest = UserCreationRequest.builder()
+            .id(userId)
+            .alias("NewUser")
+            .gender(Gender.NO_INFO)
+            .ageGroup(AgeGroup.ADULT)
+            .preferences(new HashMap<>())
+            .preferredContactMethod(PreferredContactMethod.EMAIL)
+            .phoneNr("1234567890")
+            .profilePictureUrl("http://example.com/avatar.jpg")
+            .build();
+
+        when(authUserRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(testProfile));
+
+        // When & Then
+        assertThrows(RuntimeException.class, 
+            () -> userManagementService.createUserProfile(creationRequest));
+    }
+
+    @Test
+    void updateUserProfile_Success() {
+        // Given
+        UserUpdateRequest updateRequest = new UserUpdateRequest(
+            "UpdatedUser",
+            Gender.NO_INFO,
+            AgeGroup.ADULT,
+            Preferences.builder()
+                .shareLocation(true)
+                .notifyOnDelay(true)
+                .autoNotifyContacts(true)
+                .checkInInterval(30)
+                .enableSOS(true)
+                .preferences(new HashMap<>())
+                .build(),
+            PreferredContactMethod.EMAIL,
+            "1234567890",
+            java.util.List.of()
+        );
+
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(testProfile));
+        when(userProfileRepository.save(any(com.usermanagement_service.model.UserProfile.class)))
+            .thenReturn(testProfile);
+        when(emergencyContactRepository.findByRequesterIdAndStatus(userId, RequestStatus.ACCEPTED))
+            .thenReturn(java.util.List.of());
+
+        // When
+        UserProfileResponse profile = userManagementService.updateUserProfile(userId, updateRequest);
+
+        // Then
+        assertNotNull(profile);
+        assertEquals(userId, profile.getUserId());
+        verify(userProfileRepository).save(any(com.usermanagement_service.model.UserProfile.class));
+    }
+
+    @Test
+    void updateUserProfile_ProfileNotExists_ThrowsException() {
+        // Given
+        UserUpdateRequest updateRequest = new UserUpdateRequest(
+            "UpdatedUser",
+            Gender.NO_INFO,
+            AgeGroup.ADULT,
+            Preferences.builder()
+                .shareLocation(true)
+                .notifyOnDelay(true)
+                .autoNotifyContacts(true)
+                .checkInInterval(30)
+                .enableSOS(true)
+                .preferences(new HashMap<>())
+                .build(),
+            PreferredContactMethod.EMAIL,
+            "1234567890",
+            java.util.List.of()
+        );
+
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThrows(RuntimeException.class, () -> userManagementService.updateUserProfile(userId, updateRequest));
+    }
+
+    @Test
+    void addEmergencyContact_Success() {
+        // Given
+        String contactId = "contact-123";
+        com.usermanagement_service.model.UserProfile contactProfile = com.usermanagement_service.model.UserProfile.builder()
+            .id("profile-456")
+            .userId(contactId)
+            .alias("Contact User")
+            .gender(Gender.NO_INFO)
+            .ageGroup(AgeGroup.ADULT)
+            .preferences(null)
+            .preferredContactMethod(PreferredContactMethod.EMAIL)
+            .phoneNr("1234567890")
+            .profilePictureUrl("http://example.com/avatar.jpg")
+            .build();
+
+        EmergencyContact emergencyContact = EmergencyContact.builder()
+            .id("ec-123")
+            .requesterId(userId)
+            .contactUserId(contactId)
+            .name("Contact User")
+            .email("contact@example.com")
+            .phone("1234567890")
+            .preferredMethod(PreferredContactMethod.EMAIL)
+            .status(RequestStatus.PENDING)
+            .build();
+
+        when(userProfileRepository.findByUserId(contactId)).thenReturn(Optional.of(contactProfile));
         when(emergencyContactRepository.existsByRequesterIdAndContactUserId(userId, contactId))
             .thenReturn(false);
         when(emergencyContactRepository.save(any(EmergencyContact.class)))
-            .thenAnswer(i -> i.getArgument(0));
+            .thenReturn(emergencyContact);
 
-        AddEmergencyContactResponse response = userManagementService.addEmergencyContact(userId, "XYZ789");
+        // When
+        AddEmergencyContactResponse response = userManagementService.addEmergencyContact(userId, contactId);
 
+        // Then
         assertNotNull(response);
-        assertEquals(userId, response.requesterId());
-        assertEquals(contactId, response.contactUserId());
-        verify(emergencyContactRepository).save(any(EmergencyContact.class));
+        assertEquals(userId, response.getRequesterId());
+        assertEquals(contactId, response.getContactUserId());
     }
 
     @Test
-    void addEmergencyContact_WhenContactDoesNotExist_ThrowsException() {
-        when(userRepository.findByUserCode("XYZ789")).thenReturn(Optional.empty());
-
-        assertThrows(RuntimeException.class, () -> userManagementService.addEmergencyContact(userId, "XYZ789"));
-    }
-
-    @Test
-    void addEmergencyContact_WhenRequestAlreadyExists_ThrowsException() {
-        UUID contactId = UUID.randomUUID();
-        User contactUser = User.builder()
-            .id(contactId)
-            .userCode("XYZ789")
+    void addEmergencyContact_ContactAlreadyExists_ThrowsException() {
+        // Given
+        String contactId = "contact-123";
+        com.usermanagement_service.model.UserProfile contactProfile = com.usermanagement_service.model.UserProfile.builder()
+            .id("profile-456")
+            .userId(contactId)
+            .alias("Contact User")
+            .gender(Gender.NO_INFO)
+            .ageGroup(AgeGroup.ADULT)
+            .preferences(null)
+            .preferredContactMethod(PreferredContactMethod.EMAIL)
+            .phoneNr("1234567890")
+            .profilePictureUrl("http://example.com/avatar.jpg")
             .build();
 
-        when(userRepository.findByUserCode("XYZ789")).thenReturn(Optional.of(contactUser));
+        when(userProfileRepository.findByUserId(contactId)).thenReturn(Optional.of(contactProfile));
         when(emergencyContactRepository.existsByRequesterIdAndContactUserId(userId, contactId))
             .thenReturn(true);
 
-        assertThrows(RuntimeException.class, () -> userManagementService.addEmergencyContact(userId, "XYZ789"));
+        // When & Then
+        assertThrows(RuntimeException.class, () -> userManagementService.addEmergencyContact(userId, contactId));
+    }
+
+    @Test
+    void addEmergencyContact_ContactUserNotExists_ThrowsException() {
+        // Given
+        String contactId = "contact-123";
+        when(userProfileRepository.findByUserId(contactId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThrows(RuntimeException.class, () -> userManagementService.addEmergencyContact(userId, contactId));
     }
 } 
