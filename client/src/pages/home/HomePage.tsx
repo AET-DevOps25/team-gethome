@@ -1,8 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import BottomTabBar from '../../components/BottomTabBar';
+import UserSearch from '../../components/UserSearch';
 import { userManagementService } from '../../services/userManagementService';
 import { authService } from '../../services/authService';
-import { UserProfile, EmergencyContact, Preferences } from '../../types/user';
+import { UserProfile, EmergencyContact, UserSearchResponse } from '../../types/user';
+import { 
+    Card, 
+    CardContent, 
+    Typography, 
+    Box, 
+    Grid, 
+    Chip, 
+    Button, 
+    Avatar, 
+    Divider,
+    List,
+    ListItem,
+    ListItemText,
+    ListItemAvatar,
+    IconButton,
+    Alert,
+    CircularProgress,
+    TextField
+} from '@mui/material';
+import {
+    Person,
+    Phone,
+    Email,
+    LocationOn,
+    Security,
+    Settings,
+    Edit,
+    Add,
+    CheckCircle,
+    Warning,
+    Info
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 type TabType = 'overview' | 'contacts' | 'preferences';
 
@@ -12,8 +46,9 @@ const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabType>('overview');
-  const [contactUserCode, setContactUserCode] = useState('');
+  const [selectedContact, setSelectedContact] = useState<UserSearchResponse | null>(null);
   const [addContactStatus, setAddContactStatus] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -48,156 +83,439 @@ const HomePage: React.FC = () => {
   // Handler for adding emergency contact
   const handleAddContact = async () => {
     setAddContactStatus(null);
+    if (!selectedContact) {
+      setAddContactStatus('Please select a contact first.');
+      return;
+    }
+
     try {
       const currentUser = await authService.getCurrentUser();
       if (!currentUser) {
         setAddContactStatus('No authenticated user found.');
         return;
       }
-      // You may need to resolve user code to userId in a real app
-      await userManagementService.addEmergencyContact(currentUser.id, contactUserCode);
+      await userManagementService.addEmergencyContact(currentUser.id, selectedContact.userId);
       setAddContactStatus('Contact request sent!');
-      setContactUserCode('');
-      // Optionally, refresh contacts list here
+      setSelectedContact(null);
+      // Refresh user data
+      const data = await userManagementService.getUserProfile(currentUser.id);
+      setUser(data as UserProfile);
     } catch (err: any) {
       setAddContactStatus('Failed to add contact: ' + (err?.message || 'Unknown error'));
     }
   };
 
+  const getSafetyStatus = () => {
+    if (!user) return 'unknown';
+    const contactCount = user.emergencyContacts?.length || 0;
+    if (contactCount >= 2) return 'excellent';
+    if (contactCount >= 1) return 'good';
+    return 'needs-attention';
+  };
+
+  const getSafetyStatusColor = (status: string) => {
+    switch (status) {
+      case 'excellent': return 'success';
+      case 'good': return 'warning';
+      case 'needs-attention': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const getSafetyStatusText = (status: string) => {
+    switch (status) {
+      case 'excellent': return 'Excellent';
+      case 'good': return 'Good';
+      case 'needs-attention': return 'Needs Attention';
+      default: return 'Unknown';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Box p={3}>
+        <Alert severity="warning">No user data available</Alert>
+      </Box>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      {/* User Info */}
-      <div className="flex flex-col items-center justify-center py-8 bg-white shadow">
-        <div className="h-16 w-16 rounded-full bg-indigo-600 flex items-center justify-center text-2xl text-white font-bold mb-2">
-          {user?.alias?.charAt(0).toUpperCase() ||
-            user?.email?.charAt(0).toUpperCase() ||
-            '?'}
-        </div>
-        <div className="text-lg font-semibold">{user?.alias || 'User'}</div>
-        <div className="text-gray-500 text-sm">{user?.email}</div>
-      </div>
+      {/* Header with User Info */}
+      <Box sx={{ bgcolor: 'primary.main', color: 'white', p: 3, pb: 4 }}>
+        <Grid container alignItems="center" spacing={2}>
+          <Grid item>
+            <Avatar 
+              sx={{ 
+                width: 64, 
+                height: 64, 
+                bgcolor: 'primary.dark',
+                fontSize: '1.5rem'
+              }}
+            >
+              {user.alias?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || '?'}
+            </Avatar>
+          </Grid>
+          <Grid item xs>
+            <Typography variant="h5" fontWeight="bold">
+              Welcome back, {user.alias || 'User'}!
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.8 }}>
+              {user.email}
+            </Typography>
+          </Grid>
+          <Grid item>
+            <IconButton 
+              color="inherit" 
+              onClick={() => navigate('/profile')}
+            >
+              <Edit />
+            </IconButton>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Safety Status Card */}
+      <Box sx={{ px: 3, mt: -2, mb: 3 }}>
+        <Card elevation={3}>
+          <CardContent>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box display="flex" alignItems="center">
+                <Security sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant="h6">Safety Status</Typography>
+              </Box>
+              <Chip 
+                label={getSafetyStatusText(getSafetyStatus())}
+                color={getSafetyStatusColor(getSafetyStatus()) as any}
+                variant="filled"
+              />
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {user.emergencyContacts?.length || 0} emergency contacts configured
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+
+      {/* Quick Actions */}
+      <Box sx={{ px: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Quick Actions
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={6}>
+            <Card 
+              sx={{ 
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.hover' }
+              }}
+              onClick={() => navigate('/map')}
+            >
+              <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                <LocationOn sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+                <Typography variant="body2">Plan Route</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={6}>
+            <Card 
+              sx={{ 
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.hover' }
+              }}
+              onClick={() => navigate('/chat')}
+            >
+              <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                <Person sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+                <Typography variant="body2">AI Companion</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
 
       {/* Tabs */}
-      <div className="flex justify-center bg-gray-100 border-b">
-        <button
-          className={`px-4 py-2 font-medium ${tab === 'overview' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
-          onClick={() => setTab('overview')}
-        >
-          Overview
-        </button>
-        <button
-          className={`px-4 py-2 font-medium ${tab === 'contacts' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
-          onClick={() => setTab('contacts')}
-        >
-          Emergency Contacts
-        </button>
-        <button
-          className={`px-4 py-2 font-medium ${tab === 'preferences' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
-          onClick={() => setTab('preferences')}
-        >
-          Preferences
-        </button>
-      </div>
+      <Box sx={{ px: 3, mb: 2 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex' }}>
+            {[
+              { key: 'overview', label: 'Overview', icon: Info },
+              { key: 'contacts', label: 'Emergency Contacts', icon: Security },
+              { key: 'preferences', label: 'Preferences', icon: Settings }
+            ].map((tabItem) => (
+              <Button
+                key={tabItem.key}
+                onClick={() => setTab(tabItem.key as TabType)}
+                sx={{
+                  color: tab === tabItem.key ? 'primary.main' : 'text.secondary',
+                  borderBottom: tab === tabItem.key ? 2 : 0,
+                  borderColor: 'primary.main',
+                  borderRadius: 0,
+                  textTransform: 'none',
+                  px: 3
+                }}
+                startIcon={<tabItem.icon />}
+              >
+                {tabItem.label}
+              </Button>
+            ))}
+          </Box>
+        </Box>
+      </Box>
 
       {/* Tab Content */}
-      <div className="flex-1 flex flex-col items-center px-4 py-6 w-full">
-        {loading ? (
-          <div className="text-center text-gray-500">Loading...</div>
-        ) : error ? (
-          <div className="text-center text-red-500">{error}</div>
-        ) : user ? (
-          <div className="w-full max-w-md">
-            {tab === 'overview' && (
-              <div>
-                <div className="mb-4">
-                  <div className="font-semibold">User Code:</div>
-                  <div className="text-gray-700">{user.id || 'N/A'}</div>
-                </div>
-                <div className="mb-4">
-                  <div className="font-semibold">Gender:</div>
-                  <div className="text-gray-700">{user.gender || 'Not specified'}</div>
-                </div>
-                <div className="mb-4">
-                  <div className="font-semibold">Age Group:</div>
-                  <div className="text-gray-700">{user.ageGroup || 'Not specified'}</div>
-                </div>
-                <div className="mb-4">
-                  <div className="font-semibold">Phone:</div>
-                  <div className="text-gray-700">{user.phoneNr || 'Not specified'}</div>
-                </div>
-                <div className="mb-4">
-                  <div className="font-semibold">Preferred Contact:</div>
-                  <div className="text-gray-700">{user.preferredContactMethod || 'Not specified'}</div>
-                </div>
-              </div>
-            )}
-            {tab === 'contacts' && (
-              <div>
-                <div className="font-semibold mb-2">Emergency Contacts</div>
-                {/* Add Contact Form */}
-                <div className="mb-4 flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    className="border rounded px-3 py-2 flex-1"
-                    placeholder="Enter contact's user code"
-                    value={contactUserCode}
-                    onChange={e => setContactUserCode(e.target.value)}
+      <Box sx={{ px: 3, pb: 8, flex: 1 }}>
+        {tab === 'overview' && (
+          <Box>
+            <Card sx={{ mb: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Profile Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <Person sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">Display Name</Typography>
+                    </Box>
+                    <Typography variant="body1">{user.alias || 'Not set'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <Phone sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">Phone</Typography>
+                    </Box>
+                    <Typography variant="body1">{user.phoneNr || 'Not set'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <Email sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">Preferred Contact</Typography>
+                    </Box>
+                    <Typography variant="body1">{user.preferredContactMethod || 'Not set'}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <Info sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">Age Group</Typography>
+                    </Box>
+                    <Typography variant="body1">{user.ageGroup || 'Not set'}</Typography>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Safety Features
+                </Typography>
+                <Grid container spacing={1}>
+                  {user.preferences?.shareLocation && (
+                    <Grid item xs={12}>
+                      <Chip 
+                        icon={<CheckCircle />} 
+                        label="Location sharing enabled" 
+                        color="success" 
+                        variant="outlined"
+                      />
+                    </Grid>
+                  )}
+                  {user.preferences?.enableSOS && (
+                    <Grid item xs={12}>
+                      <Chip 
+                        icon={<Security />} 
+                        label="SOS feature enabled" 
+                        color="success" 
+                        variant="outlined"
+                      />
+                    </Grid>
+                  )}
+                  {user.preferences?.autoNotifyContacts && (
+                    <Grid item xs={12}>
+                      <Chip 
+                        icon={<CheckCircle />} 
+                        label="Auto-notify contacts" 
+                        color="success" 
+                        variant="outlined"
+                      />
+                    </Grid>
+                  )}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+
+        {tab === 'contacts' && (
+          <Box>
+            <Card sx={{ mb: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Emergency Contacts
+                </Typography>
+                
+                {/* Add new contact section */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Add Emergency Contact
+                  </Typography>
+                  <UserSearch 
+                    onUserSelect={setSelectedContact}
+                    placeholder="Search by email or name..."
                   />
-                  <button
-                    className="bg-indigo-600 text-white px-4 py-2 rounded font-semibold"
+                  {selectedContact && (
+                    <Box sx={{ mt: 1, p: 1, bgcolor: 'grey.100', borderRadius: 1 }}>
+                      <Typography variant="body2">
+                        Selected: {selectedContact.alias || selectedContact.email}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Button
+                    variant="contained"
                     onClick={handleAddContact}
+                    disabled={!selectedContact}
+                    sx={{ mt: 1 }}
                   >
-                    Add
-                  </button>
-                </div>
-                {addContactStatus && (
-                  <div className="mb-2 text-sm text-center text-indigo-700">{addContactStatus}</div>
-                )}
-                {/* List of contacts */}
+                    Add Contact
+                  </Button>
+                  {addContactStatus && (
+                    <Alert severity={addContactStatus.includes('Failed') ? 'error' : 'success'} sx={{ mt: 1 }}>
+                      {addContactStatus}
+                    </Alert>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Emergency Contacts ({user.emergencyContacts?.length || 0})
+                </Typography>
                 {user.emergencyContacts && user.emergencyContacts.length > 0 ? (
-                  user.emergencyContacts.map((contact: EmergencyContact, idx: number) => (
-                    <div key={idx} className="mb-2 p-2 border rounded">
-                      <div className="font-medium">{contact.name}</div>
-                      <div className="text-sm text-gray-600">{contact.email}</div>
-                      <div className="text-sm text-gray-600">{contact.phone}</div>
-                      <div className="text-sm text-gray-600">
-                        Preferred: {contact.preferredMethod}
-                      </div>
-                    </div>
-                  ))
+                  <List>
+                    {user.emergencyContacts.map((contact: EmergencyContact, idx: number) => (
+                      <React.Fragment key={idx}>
+                        <ListItem>
+                          <ListItemAvatar>
+                            <Avatar>
+                              <Person />
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={contact.name}
+                            secondary={
+                              <Box>
+                                <Typography variant="body2">{contact.email}</Typography>
+                                <Typography variant="body2">{contact.phone}</Typography>
+                                <Chip 
+                                  label={contact.preferredMethod} 
+                                  size="small" 
+                                  variant="outlined"
+                                  sx={{ mt: 0.5 }}
+                                />
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                        {idx < user.emergencyContacts!.length - 1 && <Divider />}
+                      </React.Fragment>
+                    ))}
+                  </List>
                 ) : (
-                  <div className="text-gray-500">No emergency contacts added.</div>
+                  <Box textAlign="center" py={3}>
+                    <Warning sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                    <Typography color="text.secondary">
+                      No emergency contacts added yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Add contacts to ensure help is available in emergencies
+                    </Typography>
+                  </Box>
                 )}
-              </div>
-            )}
-            {tab === 'preferences' && (
-              <div>
-                <div className="font-semibold mb-2">Preferences</div>
-                <div className="mb-2">
-                  <span className="font-medium">Check-in Interval:</span>{' '}
-                  {user.preferences?.checkInInterval ?? 'Not set'} minutes
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">Share Location:</span>{' '}
-                  {user.preferences?.shareLocation ? 'Enabled' : 'Disabled'}
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">Notify on Delay:</span>{' '}
-                  {user.preferences?.notifyOnDelay ? 'Enabled' : 'Disabled'}
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">Auto Notify Contacts:</span>{' '}
-                  {user.preferences?.autoNotifyContacts ? 'Enabled' : 'Disabled'}
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">SOS Feature:</span>{' '}
-                  {user.preferences?.enableSOS ? 'Enabled' : 'Disabled'}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : null}
-      </div>
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+
+        {tab === 'preferences' && (
+          <Box>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Safety Preferences
+                </Typography>
+                <List>
+                  <ListItem>
+                    <ListItemText
+                      primary="Share Location"
+                      secondary="Allow emergency contacts to see your location"
+                    />
+                    <Chip 
+                      label={user.preferences?.shareLocation ? 'Enabled' : 'Disabled'} 
+                      color={user.preferences?.shareLocation ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </ListItem>
+                  <Divider />
+                  <ListItem>
+                    <ListItemText
+                      primary="Check-in Interval"
+                      secondary="How often to check in during journeys"
+                    />
+                    <Chip 
+                      label={`${user.preferences?.checkInInterval || 15} minutes`} 
+                      size="small"
+                    />
+                  </ListItem>
+                  <Divider />
+                  <ListItem>
+                    <ListItemText
+                      primary="Auto Notify Contacts"
+                      secondary="Automatically notify contacts on delays"
+                    />
+                    <Chip 
+                      label={user.preferences?.autoNotifyContacts ? 'Enabled' : 'Disabled'} 
+                      color={user.preferences?.autoNotifyContacts ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </ListItem>
+                  <Divider />
+                  <ListItem>
+                    <ListItemText
+                      primary="SOS Feature"
+                      secondary="Enable emergency SOS button"
+                    />
+                    <Chip 
+                      label={user.preferences?.enableSOS ? 'Enabled' : 'Disabled'} 
+                      color={user.preferences?.enableSOS ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+      </Box>
+
       <BottomTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );

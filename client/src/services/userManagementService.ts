@@ -4,7 +4,8 @@ import {
     UserCreationRequest, 
     UserUpdateRequest, 
     UserSummary, 
-    EmergencyContactData
+    EmergencyContactData,
+    UserSearchResponse
 } from '../types/user';
 import { authService } from './authService';
 
@@ -135,9 +136,9 @@ class UserManagementService {
         await axios.delete(`${this.baseUrl}/users/${userId}`, this.getAuthHeader());
     }
 
-    async addEmergencyContact(userId: string, contactUserCode: string): Promise<{ id: string; requesterId: string; contactUserId: string }> {
+    async addEmergencyContact(userId: string, contactUserId: string): Promise<{ id: string; requesterId: string; contactUserId: string }> {
         const response = await axios.post(
-            `${this.baseUrl}/users/${userId}/emergency-contacts?contactUserCode=${contactUserCode}`,
+            `${this.baseUrl}/users/${userId}/emergency-contacts/${contactUserId}`,
             {},
             this.getAuthHeader()
         );
@@ -173,6 +174,11 @@ class UserManagementService {
 
     async removeEmergencyContactOf(userId: string, requesterId: string): Promise<void> {
         await axios.delete(`${this.baseUrl}/users/${userId}/emergency-contacts-of/${requesterId}`, this.getAuthHeader());
+    }
+
+    async searchUsers(query: string): Promise<UserSearchResponse[]> {
+        const response = await axios.get(`${this.baseUrl}/users/search?query=${encodeURIComponent(query)}`, this.getAuthHeader());
+        return response.data;
     }
 }
 

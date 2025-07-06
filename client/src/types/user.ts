@@ -69,4 +69,11 @@ export interface EmergencyContactData {
     relationship: string;
     phoneNumber: string;
     email: string;
+}
+
+export interface UserSearchResponse {
+    userId: string;
+    email: string;
+    alias: string;
+    profilePictureUrl?: string;
 } 
