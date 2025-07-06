@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -255,5 +258,54 @@ public class UserManagementService {
 
     public void removeEmergencyContactOf(String requesterId, String userId) {
         emergencyContactRepository.deleteByRequesterIdAndContactUserId(requesterId, userId);
+    }
+
+    public List<UserSearchResponse> searchUsers(String query, String currentUserId) {
+        logger.info("Searching users with query: {} for user: {}", query, currentUserId);
+        
+        // Search by email or alias (case-insensitive)
+        List<AuthUser> authUsers = authUserRepository.findByEmailContainingIgnoreCaseOrIdContainingIgnoreCase(query, query);
+        List<com.usermanagement_service.model.UserProfile> profiles = userProfileRepository.findByAliasContainingIgnoreCase(query);
+        
+        // Combine and deduplicate results
+        Set<String> foundUserIds = new HashSet<>();
+        List<UserSearchResponse> results = new ArrayList<>();
+        
+        // Add auth users
+        for (AuthUser authUser : authUsers) {
+            if (!authUser.getId().equals(currentUserId) && !foundUserIds.contains(authUser.getId())) {
+                foundUserIds.add(authUser.getId());
+                
+                // Get profile for alias
+                com.usermanagement_service.model.UserProfile profile = userProfileRepository.findByUserId(authUser.getId()).orElse(null);
+                
+                results.add(UserSearchResponse.builder()
+                    .userId(authUser.getId())
+                    .email(authUser.getEmail())
+                    .alias(profile != null ? profile.getAlias() : null)
+                    .profilePictureUrl(profile != null ? profile.getProfilePictureUrl() : null)
+                    .build());
+            }
+        }
+        
+        // Add profiles not already included
+        for (com.usermanagement_service.model.UserProfile profile : profiles) {
+            if (!profile.getUserId().equals(currentUserId) && !foundUserIds.contains(profile.getUserId())) {
+                foundUserIds.add(profile.getUserId());
+                
+                // Get auth user for email
+                AuthUser authUser = authUserRepository.findById(profile.getUserId()).orElse(null);
+                
+                results.add(UserSearchResponse.builder()
+                    .userId(profile.getUserId())
+                    .email(authUser != null ? authUser.getEmail() : null)
+                    .alias(profile.getAlias())
+                    .profilePictureUrl(profile.getProfilePictureUrl())
+                    .build());
+            }
+        }
+        
+        // Limit results to 10
+        return results.stream().limit(10).collect(Collectors.toList());
     }
 } 

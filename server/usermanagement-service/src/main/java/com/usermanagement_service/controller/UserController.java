@@ -166,4 +166,23 @@ public class UserController {
         userManagementService.removeEmergencyContactOf(requesterId, userId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<UserSearchResponse>> searchUsers(
+            @RequestParam String query,
+            HttpServletRequest request) {
+        // Extract token and verify user is authenticated
+        String token = request.getHeader("Authorization").substring(7);
+        String authenticatedUserId = jwtService.extractUserId(token);
+        
+        logger.info("User {} searching for users with query: {}", authenticatedUserId, query);
+        try {
+            List<UserSearchResponse> users = userManagementService.searchUsers(query, authenticatedUserId);
+            logger.info("Found {} users matching query: {}", users.size(), query);
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            logger.error("Error searching users", e);
+            return ResponseEntity.badRequest().build();
+        }
+    }
 } 
