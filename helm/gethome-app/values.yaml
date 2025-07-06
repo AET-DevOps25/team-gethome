@@ -135,7 +135,7 @@ services:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/ai-service:latest
     imagePullPolicy: IfNotPresent
-    port: 8000
+    port: 8085
     resources:
       limits:
         cpu: 1000m
@@ -144,23 +144,35 @@ services:
         cpu: 500m
         memory: 1Gi
     env:
-      - name: MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
-      - name: AI_MODEL_PATH
-        value: "/app/models"
-      - name: ENABLE_METRICS
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: jwt-secret
+      - name: JWT_ALGORITHM
+        value: "HS256"
+      - name: USER_SERVICE_URL
+        value: "http://usermanagement-service:8082/api/users/{user_id}/profile"
+      - name: OPENAI_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: openai-api-key
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
         value: "true"
     service:
       type: ClusterIP
-      port: 80
-      targetPort: 8000
+      port: 8085
+      targetPort: 8085
 
   # Auth Service
   auth-service:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/auth-service:latest
     imagePullPolicy: IfNotPresent
-    port: 8080
+    port: 8081
     resources:
       limits:
         cpu: 1000m
@@ -171,27 +183,48 @@ services:
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: "production"
-      - name: SPRING_DATA_MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
+      - name: SPRING_DATA_MONGODB_HOST
+        value: "mongo"
+      - name: SPRING_DATA_MONGODB_PORT
+        value: "27017"
+      - name: SPRING_DATA_MONGODB_DATABASE
+        value: "gethome_auth"
       - name: JWT_SECRET
-        value: "your-super-secret-jwt-key-change-in-production"
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: jwt-secret
       - name: JWT_EXPIRATION
         value: "86400000"
+      - name: SPRING_MAIL_HOST
+        value: "smtp.gmail.com"
+      - name: SPRING_MAIL_PORT
+        value: "587"
+      - name: SPRING_MAIL_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: email-username
+      - name: SPRING_MAIL_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: email-password
       - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,prometheus,metrics"
       - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
         value: "true"
     service:
       type: ClusterIP
-      port: 80
-      targetPort: 8080
+      port: 8081
+      targetPort: 8081
 
-  # Emergency Service
+  # Message Service
   message-service:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/message-service:latest
     imagePullPolicy: IfNotPresent
-    port: 8080
+    port: 8083
     resources:
       limits:
         cpu: 1000m
@@ -202,23 +235,71 @@ services:
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: "production"
-      - name: SPRING_DATA_MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
+      - name: SPRING_DATA_MONGODB_HOST
+        value: "mongo"
+      - name: SPRING_DATA_MONGODB_PORT
+        value: "27017"
+      - name: SPRING_DATA_MONGODB_DATABASE
+        value: "gethome_messages"
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: jwt-secret
+      - name: JWT_EXPIRATION
+        value: "86400000"
+      - name: SERVICE_AUTH_URL
+        value: "http://auth-service:8081"
+      - name: SERVICE_USERMANAGEMENT_URL
+        value: "http://usermanagement-service:8082"
+      - name: SERVICE_ROUTING_URL
+        value: "http://routing-service:8084"
+      - name: SERVICE_AI_URL
+        value: "http://ai-service:8085"
+      - name: SPRING_MAIL_HOST
+        value: "smtp.gmail.com"
+      - name: SPRING_MAIL_PORT
+        value: "587"
+      - name: SPRING_MAIL_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: email-username
+      - name: SPRING_MAIL_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: email-password
+      - name: TWILIO_ACCOUNT_SID
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: twilio-account-sid
+      - name: TWILIO_AUTH_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: twilio-auth-token
+      - name: TWILIO_PHONE_NUMBER
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: twilio-phone-number
       - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,prometheus,metrics"
       - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
         value: "true"
     service:
       type: ClusterIP
-      port: 80
-      targetPort: 8080
+      port: 8083
+      targetPort: 8083
 
   # Routing Service
   routing-service:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/routing-service:latest
     imagePullPolicy: IfNotPresent
-    port: 8080
+    port: 8084
     resources:
       limits:
         cpu: 1000m
@@ -229,23 +310,49 @@ services:
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: "production"
-      - name: SPRING_DATA_MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
+      - name: SPRING_DATA_MONGODB_HOST
+        value: "mongo"
+      - name: SPRING_DATA_MONGODB_PORT
+        value: "27017"
+      - name: SPRING_DATA_MONGODB_DATABASE
+        value: "gethome_routing"
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: jwt-secret
+      - name: JWT_EXPIRATION
+        value: "86400000"
+      - name: SERVICE_AUTH_URL
+        value: "http://auth-service:8081"
+      - name: SERVICE_USERMANAGEMENT_URL
+        value: "http://usermanagement-service:8082"
+      - name: SERVICE_MESSAGE_URL
+        value: "http://message-service:8083"
+      - name: SERVICE_AI_URL
+        value: "http://ai-service:8085"
+      - name: ROUTING_API_URL
+        value: "https://api.openrouteservice.org/v2"
+      - name: ROUTING_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: openrouteservice-api-key
       - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,prometheus,metrics"
       - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
         value: "true"
     service:
       type: ClusterIP
-      port: 80
-      targetPort: 8080
+      port: 8084
+      targetPort: 8084
 
   # User Management Service
   usermanagement-service:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/usermanagement-service:latest
     imagePullPolicy: IfNotPresent
-    port: 8080
+    port: 8082
     resources:
       limits:
         cpu: 1000m
@@ -256,18 +363,29 @@ services:
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: "production"
-      - name: SPRING_DATA_MONGODB_URI
-        value: "mongodb://mongo:27017/gethome"
-      - name: AUTH_SERVICE_URL
-        value: "http://auth-service:80"
+      - name: SPRING_DATA_MONGODB_HOST
+        value: "mongo"
+      - name: SPRING_DATA_MONGODB_PORT
+        value: "27017"
+      - name: SPRING_DATA_MONGODB_DATABASE
+        value: "gethome_users"
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: jwt-secret
+      - name: JWT_EXPIRATION
+        value: "86400000"
+      - name: SERVICE_AUTH_URL
+        value: "http://auth-service:8081"
       - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
         value: "health,info,prometheus,metrics"
       - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
         value: "true"
     service:
       type: ClusterIP
-      port: 80
-      targetPort: 8080
+      port: 8082
+      targetPort: 8082
 
   # React Client
   react-client:
@@ -287,6 +405,12 @@ services:
         value: "https://gethome.local/api"
       - name: REACT_APP_AUTH_SERVICE_URL
         value: "https://gethome.local/api/auth"
+      - name: REACT_APP_USERMANAGEMENT_SERVICE_URL
+        value: "https://gethome.local/api/user"
+      - name: REACT_APP_ROUTING_SERVICE_URL
+        value: "https://gethome.local/api/routing"
+      - name: REACT_APP_CHAT_SERVICE_URL
+        value: "https://gethome.local/api/ai"
     service:
       type: ClusterIP
       port: 80
@@ -306,7 +430,13 @@ secrets:
   data:
     jwt-secret: "your-super-secret-jwt-key-change-in-production"
     mongo-password: "example"
-    email-password: "your-email-password"
+    email-username: "your-email@gmail.com"
+    email-password: "your-email-app-password"
+    twilio-account-sid: "your-twilio-account-sid"
+    twilio-auth-token: "your-twilio-auth-token"
+    twilio-phone-number: "+1234567890"
+    openai-api-key: "your-openai-api-key"
+    openrouteservice-api-key: "your-openrouteservice-api-key"
 
 # Service Account
 serviceAccount:

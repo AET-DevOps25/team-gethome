@@ -44,7 +44,8 @@ def test_start_chat_session(mock_chain, mock_profile, mock_jwt):
 @patch('app.main.validate_jwt')
 def test_start_chat_session_invalid_token(mock_jwt):
     """Test starting a chat session with invalid token"""
-    mock_jwt.side_effect = Exception("Invalid token")
+    from fastapi import HTTPException
+    mock_jwt.side_effect = HTTPException(status_code=401, detail="Invalid JWT token")
     
     response = client.post(
         "/api/chat/sessions",
