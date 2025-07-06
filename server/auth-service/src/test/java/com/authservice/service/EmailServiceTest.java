@@ -1,6 +1,7 @@
 package com.authservice.service;
 
 import com.authservice.model.User;
+import com.authservice.security.JwtService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;

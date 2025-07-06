@@ -5,7 +5,7 @@ import com.authservice.model.AuthProvider;
 import com.authservice.model.Role;
 import com.authservice.model.User;
 import com.authservice.repository.UserRepository;
-import com.authservice.service.JwtService;
+import com.authservice.security.JwtService;
 import jakarta.mail.MessagingException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
