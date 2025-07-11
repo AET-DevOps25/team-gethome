@@ -142,258 +142,260 @@ jobs:
     #     platforms: linux/amd64,linux/arm64
 
   # Deploy to Development
-  deploy-development:
-    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
-    runs-on: ubuntu-latest
-    environment: development
-    needs: test-and-build
+  # deploy-development:
+  #   if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
+  #   runs-on: ubuntu-latest
+  #   environment: development
+  #   needs: test-and-build
     
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
+  #   - name: Set up kubectl
+  #     uses: azure/setup-kubectl@v3
+  #     with:
+  #       version: 'latest'
 
-    - name: Configure kubectl for development cluster
-      run: |
-        # Configure kubectl for your development cluster
-        # Replace with your actual cluster configuration
-        echo "${{ secrets.DEV_KUBECONFIG }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
+  #   - name: Configure kubectl for development cluster
+  #     run: |
+  #       # Configure kubectl for your development cluster
+  #       # Replace with your actual cluster configuration
+  #       echo "${{ secrets.DEV_KUBECONFIG }}" | base64 -d > kubeconfig
+  #       export KUBECONFIG=kubeconfig
         
-        # Test connectivity with limited permissions
-        echo "🔗 Testing Kubernetes connectivity..."
-        kubectl version --client
+  #       # Test connectivity with limited permissions
+  #       echo "🔗 Testing Kubernetes connectivity..."
+  #       kubectl version --client
         
-        # Test namespace access (this should work with limited permissions)
-        echo "📁 Testing namespace access..."
-        kubectl get namespaces devops25-k8s-gethome --ignore-not-found || echo "Namespace devops25-k8s-gethome does not exist yet (will be created)"
+  #       # Test namespace access (this should work with limited permissions)
+  #       echo "📁 Testing namespace access..."
+  #       kubectl get namespaces devops25-k8s-gethome --ignore-not-found || echo "Namespace devops25-k8s-gethome does not exist yet (will be created)"
         
-        # Test general connectivity without requiring cluster-admin
-        echo "🎯 Testing basic API access..."
-        kubectl auth can-i create pods --namespace=devops25-k8s-gethome || echo "⚠️  Limited pod permissions"
-        kubectl auth can-i create secrets --namespace=devops25-k8s-gethome || echo "⚠️  Limited secret permissions"
+  #       # Test general connectivity without requiring cluster-admin
+  #       echo "🎯 Testing basic API access..."
+  #       kubectl auth can-i create pods --namespace=devops25-k8s-gethome || echo "⚠️  Limited pod permissions"
+  #       kubectl auth can-i create secrets --namespace=devops25-k8s-gethome || echo "⚠️  Limited secret permissions"
         
-        echo "✅ Kubernetes connection established with available permissions"
+  #       echo "✅ Kubernetes connection established with available permissions"
 
-    - name: Install Helm
-      uses: azure/setup-helm@v3
-      with:
-        version: 'latest'
+  #   - name: Install Helm
+  #     uses: azure/setup-helm@v3
+  #     with:
+  #       version: 'latest'
 
-    - name: Add Helm repositories
-      run: |
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo add grafana https://grafana.github.io/helm-charts
-        helm repo update
+  #   - name: Add Helm repositories
+  #     run: |
+  #       helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  #       helm repo add grafana https://grafana.github.io/helm-charts
+  #       helm repo update
 
-    - name: Create namespace
-      run: |
-        export KUBECONFIG=kubeconfig
-        kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+  #   - name: Create namespace
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
+  #       kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
 
-    - name: Create GitHub Container Registry secret
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Create GitHub Container Registry secret
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        # Create imagePullSecret for GitHub Container Registry
-        kubectl create secret docker-registry ghcr-secret \
-          --docker-server=ghcr.io \
-          --docker-username=${{ github.actor }} \
-          --docker-password=${{ secrets.GITHUB_TOKEN }} \
-          --docker-email=${{ github.actor }}@users.noreply.github.com \
-          --namespace devops25-k8s-gethome \
-          --dry-run=client -o yaml | kubectl apply -f -
+  #       # Create imagePullSecret for GitHub Container Registry
+  #       kubectl create secret docker-registry ghcr-secret \
+  #         --docker-server=ghcr.io \
+  #         --docker-username=${{ github.actor }} \
+  #         --docker-password=${{ secrets.GITHUB_TOKEN }} \
+  #         --docker-email=${{ github.actor }}@users.noreply.github.com \
+  #         --namespace devops25-k8s-gethome \
+  #         --dry-run=client -o yaml | kubectl apply -f -
         
-        echo "✅ GitHub Container Registry secret created successfully"
+  #       echo "✅ GitHub Container Registry secret created successfully"
 
-    - name: Create application secrets
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Create application secrets
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        # Create secrets with actual credentials from GitHub secrets
-        kubectl create secret generic gethome-secrets \
-          --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
-          --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
-          --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
-          --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
-          --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
-          --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
-          --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
-          --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
-          --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
-          --namespace devops25-k8s-gethome \
-          --dry-run=client -o yaml | kubectl apply -f -
+  #       # Create secrets with actual credentials from GitHub secrets
+  #       kubectl create secret generic gethome-secrets \
+  #         --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
+  #         --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
+  #         --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
+  #         --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
+  #         --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
+  #         --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
+  #         --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
+  #         --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
+  #         --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
+  #         --namespace devops25-k8s-gethome \
+  #         --dry-run=client -o yaml | kubectl apply -f -
         
-        echo "✅ Application secrets created successfully"
+  #       echo "✅ Application secrets created successfully"
 
-    - name: Deploy to development
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Deploy to development
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        # Deploy the application
-        helm upgrade --install gethome-app ./helm/gethome-app \
-          --namespace devops25-k8s-gethome \
-          --create-namespace \
-          -f ./helm/gethome-app/values-dev.yaml \
-          --set global.environment=development \
-          --set global.imageRegistry=ghcr.io \
-          --set global.imagePullSecrets[0].name=ghcr-secret \
-          --set secrets.enabled=false \
-          --wait --timeout=10m
+  #       # Deploy the application
+  #       helm upgrade --install gethome-app ./helm/gethome-app \
+  #         --namespace devops25-k8s-gethome \
+  #         --create-namespace \
+  #         -f ./helm/gethome-app/values-dev.yaml \
+  #         --set global.environment=development \
+  #         --set global.imageRegistry=ghcr.io \
+  #         --set global.imagePullSecrets[0].name=ghcr-secret \
+  #         --set secrets.enabled=false \
+  #         --set monitoring.deploymentTracker.enabled=false \
+  #         --wait --timeout=10m
 
-    - name: Verify deployment
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Verify deployment
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        # Wait for all pods to be ready
-        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gethome-app \
-          --namespace devops25-k8s-gethome --timeout=300s
+  #       # Wait for all pods to be ready
+  #       kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gethome-app \
+  #         --namespace devops25-k8s-gethome --timeout=300s
         
-        # Check service status
-        kubectl get services -n devops25-k8s-gethome
-        kubectl get pods -n devops25-k8s-gethome
+  #       # Check service status
+  #       kubectl get services -n devops25-k8s-gethome
+  #       kubectl get pods -n devops25-k8s-gethome
 
-    - name: Run smoke tests
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Run smoke tests
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        # Basic health checks
-        kubectl get endpoints -n devops25-k8s-gethome
+  #       # Basic health checks
+  #       kubectl get endpoints -n devops25-k8s-gethome
         
-        # Check if services are responding
-        # Add your specific health check endpoints here
-        echo "Development deployment completed successfully"
+  #       # Check if services are responding
+  #       # Add your specific health check endpoints here
+  #       echo "Development deployment completed successfully"
 
-  # Deploy to Staging
-  deploy-staging:
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
-    runs-on: ubuntu-latest
-    environment: staging
-    needs: test-and-build
+  # # Deploy to Staging
+  # deploy-staging:
+  #   if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+  #   runs-on: ubuntu-latest
+  #   environment: staging
+  #   needs: test-and-build
     
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
 
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
+  #   - name: Set up kubectl
+  #     uses: azure/setup-kubectl@v3
+  #     with:
+  #       version: 'latest'
 
-    - name: Configure kubectl for staging cluster
-      run: |
-        echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
+  #   - name: Configure kubectl for staging cluster
+  #     run: |
+  #       echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > kubeconfig
+  #       export KUBECONFIG=kubeconfig
         
-        # Test connectivity with limited permissions
-        echo "🔗 Testing Kubernetes connectivity..."
-        kubectl version --client
+  #       # Test connectivity with limited permissions
+  #       echo "🔗 Testing Kubernetes connectivity..."
+  #       kubectl version --client
         
-        # Test namespace access
-        echo "📁 Testing namespace access..."
-        kubectl get namespaces devops25-k8s-gethome --ignore-not-found || echo "Namespace devops25-k8s-gethome does not exist yet (will be created)"
+  #       # Test namespace access
+  #       echo "📁 Testing namespace access..."
+  #       kubectl get namespaces devops25-k8s-gethome --ignore-not-found || echo "Namespace devops25-k8s-gethome does not exist yet (will be created)"
         
-        # Test basic API access
-        echo "🎯 Testing basic API access..."
-        kubectl auth can-i create pods --namespace=devops25-k8s-gethome || echo "⚠️  Limited pod permissions"
-        kubectl auth can-i create secrets --namespace=devops25-k8s-gethome || echo "⚠️  Limited secret permissions"
+  #       # Test basic API access
+  #       echo "🎯 Testing basic API access..."
+  #       kubectl auth can-i create pods --namespace=devops25-k8s-gethome || echo "⚠️  Limited pod permissions"
+  #       kubectl auth can-i create secrets --namespace=devops25-k8s-gethome || echo "⚠️  Limited secret permissions"
         
-        echo "✅ Kubernetes connection established with available permissions"
+  #       echo "✅ Kubernetes connection established with available permissions"
 
-    - name: Install Helm
-      uses: azure/setup-helm@v3
-      with:
-        version: 'latest'
+  #   - name: Install Helm
+  #     uses: azure/setup-helm@v3
+  #     with:
+  #       version: 'latest'
 
-    - name: Add Helm repositories
-      run: |
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo add grafana https://grafana.github.io/helm-charts
-        helm repo update
+  #   - name: Add Helm repositories
+  #     run: |
+  #       helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  #       helm repo add grafana https://grafana.github.io/helm-charts
+  #       helm repo update
 
-    - name: Create namespace
-      run: |
-        export KUBECONFIG=kubeconfig
-        kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+  #   - name: Create namespace
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
+  #       kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
 
-    - name: Create GitHub Container Registry secret
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Create GitHub Container Registry secret
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        # Create imagePullSecret for GitHub Container Registry
-        kubectl create secret docker-registry ghcr-secret \
-          --docker-server=ghcr.io \
-          --docker-username=${{ github.actor }} \
-          --docker-password=${{ secrets.GITHUB_TOKEN }} \
-          --docker-email=${{ github.actor }}@users.noreply.github.com \
-          --namespace devops25-k8s-gethome \
-          --dry-run=client -o yaml | kubectl apply -f -
+  #       # Create imagePullSecret for GitHub Container Registry
+  #       kubectl create secret docker-registry ghcr-secret \
+  #         --docker-server=ghcr.io \
+  #         --docker-username=${{ github.actor }} \
+  #         --docker-password=${{ secrets.GITHUB_TOKEN }} \
+  #         --docker-email=${{ github.actor }}@users.noreply.github.com \
+  #         --namespace devops25-k8s-gethome \
+  #         --dry-run=client -o yaml | kubectl apply -f -
         
-        echo "✅ GitHub Container Registry secret created successfully"
+  #       echo "✅ GitHub Container Registry secret created successfully"
 
-    - name: Create application secrets
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Create application secrets
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        # Create secrets with actual credentials from GitHub secrets
-        kubectl create secret generic gethome-secrets \
-          --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
-          --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
-          --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
-          --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
-          --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
-          --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
-          --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
-          --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
-          --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
-          --namespace devops25-k8s-gethome \
-          --dry-run=client -o yaml | kubectl apply -f -
+  #       # Create secrets with actual credentials from GitHub secrets
+  #       kubectl create secret generic gethome-secrets \
+  #         --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
+  #         --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
+  #         --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
+  #         --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
+  #         --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
+  #         --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
+  #         --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
+  #         --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
+  #         --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
+  #         --namespace devops25-k8s-gethome \
+  #         --dry-run=client -o yaml | kubectl apply -f -
         
-        echo "✅ Application secrets created successfully"
+  #       echo "✅ Application secrets created successfully"
 
-    - name: Deploy to staging
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Deploy to staging
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        helm upgrade --install gethome-app ./helm/gethome-app \
-          --namespace devops25-k8s-gethome \
-          --create-namespace \
-          -f ./helm/gethome-app/values.yaml \
-          --set global.environment=staging \
-          --set global.imageRegistry=ghcr.io \
-          --set global.imagePullSecrets[0].name=ghcr-secret \
-          --set services.auth-service.image=ghcr.io/${{ env.IMAGE_NAME }}/auth-service:main \
-          --set services.usermanagement-service.image=ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:main \
-          --set services.ai-service.image=ghcr.io/${{ env.IMAGE_NAME }}/ai-service:main \
-          --set services.message-service.image=ghcr.io/${{ env.IMAGE_NAME }}/message-service:main \
-          --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:main \
-          --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:main \
-          --set secrets.enabled=false \
-          --wait --timeout=10m
+  #       helm upgrade --install gethome-app ./helm/gethome-app \
+  #         --namespace devops25-k8s-gethome \
+  #         --create-namespace \
+  #         -f ./helm/gethome-app/values.yaml \
+  #         --set global.environment=staging \
+  #         --set global.imageRegistry=ghcr.io \
+  #         --set global.imagePullSecrets[0].name=ghcr-secret \
+  #         --set services.auth-service.image=ghcr.io/${{ env.IMAGE_NAME }}/auth-service:main \
+  #         --set services.usermanagement-service.image=ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:main \
+  #         --set services.ai-service.image=ghcr.io/${{ env.IMAGE_NAME }}/ai-service:main \
+  #         --set services.message-service.image=ghcr.io/${{ env.IMAGE_NAME }}/message-service:main \
+  #         --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:main \
+  #         --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:main \
+  #         --set secrets.enabled=false \
+  #         --set monitoring.deploymentTracker.enabled=false \
+  #         --wait --timeout=10m
 
-    - name: Verify deployment
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Verify deployment
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gethome-app \
-          --namespace devops25-k8s-gethome --timeout=300s
+  #       kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gethome-app \
+  #         --namespace devops25-k8s-gethome --timeout=300s
         
-        kubectl get services -n devops25-k8s-gethome
-        kubectl get pods -n devops25-k8s-gethome
+  #       kubectl get services -n devops25-k8s-gethome
+  #       kubectl get pods -n devops25-k8s-gethome
 
-    - name: Run integration tests
-      run: |
-        export KUBECONFIG=kubeconfig
+  #   - name: Run integration tests
+  #     run: |
+  #       export KUBECONFIG=kubeconfig
         
-        # Run integration tests against staging environment
-        echo "Running integration tests..."
-        # Add your integration test commands here
+  #       # Run integration tests against staging environment
+  #       echo "Running integration tests..."
+  #       # Add your integration test commands here
         
-        echo "Staging deployment completed successfully"
+  #       echo "Staging deployment completed successfully"
 
   # Deploy to Production
   deploy-production:
@@ -500,6 +502,7 @@ jobs:
           --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest \
           --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest \
           --set secrets.enabled=false \
+          --set monitoring.deploymentTracker.enabled=false \
           --wait --timeout=15m
 
     - name: Verify deployment
@@ -721,7 +724,7 @@ jobs:
 
   # Notify on deployment
   notify:
-    needs: [deploy-development, deploy-staging, deploy-production]
+    needs: [deploy-production]
     runs-on: ubuntu-latest
     if: always() && (needs.deploy-development.result == 'success' || needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
     steps:
