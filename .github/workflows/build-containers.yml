@@ -49,7 +49,7 @@ jobs:
           - service: routing-service
             context: ./server/routing-service
             dockerfile: Dockerfile
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -96,10 +96,23 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         platforms: linux/amd64,linux/arm64
 
-  # Build AI Service (Python)
-  build-ai-service:
+  # Build Python Services (AI Service and Metrics Exporter)
+  build-python-services:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      matrix:
+        service: [ai-service, gethome-metrics-exporter]
+        include:
+          - service: ai-service
+            context: ./server/ai-service
+            dockerfile: Dockerfile
+            description: "GetHome AI and Machine Learning Service"
+          - service: gethome-metrics-exporter
+            context: ./server/gethome-metrics-exporter
+            dockerfile: Dockerfile
+            description: "GetHome Custom Prometheus Business Intelligence Exporter"
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -116,15 +129,15 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ai-service
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable={{is_default_branch}}
         labels: |
-          org.opencontainers.image.title=GetHome AI Service
-          org.opencontainers.image.description=GetHome AI and Machine Learning Service
+          org.opencontainers.image.title=GetHome ${{ matrix.service }}
+          org.opencontainers.image.description=${{ matrix.description }}
           org.opencontainers.image.vendor=GetHome Team
 
     - name: Login to Container Registry (fresh token)
@@ -138,8 +151,8 @@ jobs:
       id: build
       uses: docker/build-push-action@v5
       with:
-        context: ./server/ai-service
-        file: ./server/ai-service/Dockerfile
+        context: ${{ matrix.context }}
+        file: ${{ matrix.context }}/${{ matrix.dockerfile }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -198,7 +211,7 @@ jobs:
 
   # Generate Container Registry Summary
   generate-summary:
-    needs: [build-java-services, build-ai-service, build-react-client]
+    needs: [build-java-services, build-python-services, build-react-client]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -228,7 +241,7 @@ jobs:
             
             ### Built Images
             - **Java Services**: auth-service, usermanagement-service, message-service, routing-service
-            - **AI Service**: ai-service (Python)
+            - **Python Services**: ai-service, gethome-metrics-exporter
             - **Frontend**: react-client
             
             ### Registry Location

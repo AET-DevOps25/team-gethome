@@ -70,6 +70,14 @@ data:
           - targets: ['react-client:80']
         scrape_interval: 30s
 
+      # GetHome Custom Business Intelligence Exporter
+      - job_name: 'gethome-metrics-exporter'
+        metrics_path: '/metrics'
+        static_configs:
+          - targets: ['gethome-metrics-exporter:8090']
+        scrape_interval: {{ .Values.monitoring.customExporter.scrapeInterval | default "30s" }}
+        honor_labels: true
+
       # MongoDB
       - job_name: 'mongodb'
         static_configs:

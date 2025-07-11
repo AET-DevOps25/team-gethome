@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth-service, usermanagement-service, message-service, routing-service, ai-service, react-client]
+        service: [auth-service, usermanagement-service, message-service, routing-service, ai-service, gethome-metrics-exporter, react-client]
     
     steps:
     - name: Checkout code
@@ -68,9 +68,15 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Set up Python (for metrics exporter)
+      if: matrix.service == 'gethome-metrics-exporter'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
     # Test Java services
     - name: Test Java services
-      if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'react-client'
+      if: contains(matrix.service, 'service') && matrix.service != 'ai-service' && matrix.service != 'gethome-metrics-exporter' && matrix.service != 'react-client'
       run: |
         cd server/${{ matrix.service }}
         chmod +x ./gradlew
@@ -91,6 +97,16 @@ jobs:
         cd server/ai-service
         pip install -r requirements.txt
         python -m pytest tests/ -v
+
+    # Test metrics exporter
+    - name: Test metrics exporter
+      if: matrix.service == 'gethome-metrics-exporter'
+      run: |
+        cd server/gethome-metrics-exporter
+        pip install -r requirements.txt
+        # Basic syntax check since no tests exist yet
+        python -m py_compile app/main.py
+        echo "✅ Metrics exporter code validation passed"
 
     # Build and push Docker images
     - name: Set up Docker Buildx
