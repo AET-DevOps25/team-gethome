@@ -89,6 +89,71 @@ services:
     depends_on:
       - mongo
 
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:v2.40.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - gethome-metrics-exporter
+
+  grafana:
+    image: grafana/grafana:9.3.0
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+
+  alertmanager:
+    image: prom/alertmanager:v0.24.0
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
+  gethome-metrics-exporter:
+    build: ./server/gethome-metrics-exporter
+    ports:
+      - "8090:8090"
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+      - AUTH_SERVICE_URL=http://auth-service:8080
+      - ROUTING_SERVICE_URL=http://routing-service:8080
+      - MESSAGE_SERVICE_URL=http://message-service:8080
+      - USER_SERVICE_URL=http://usermanagement-service:8080
+      - SCRAPE_INTERVAL=30
+      - METRICS_PORT=8090
+      - ENVIRONMENT=development
+      - DATABASE_TYPE=mongodb
+    depends_on:
+      - mongo
+      - auth-service
+      - routing-service
+      - message-service
+      - usermanagement-service
+
   mongo:
     image: mongo:6
     restart: always
@@ -103,3 +168,6 @@ services:
 
 volumes:
   mongo-data:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:

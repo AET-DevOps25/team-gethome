@@ -1,0 +1,60 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # GetHome Services
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 30s
+
+  - job_name: 'message-service'
+    static_configs:
+      - targets: ['message-service:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 30s
+
+  - job_name: 'routing-service'
+    static_configs:
+      - targets: ['routing-service:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 30s
+
+  - job_name: 'usermanagement-service'
+    static_configs:
+      - targets: ['usermanagement-service:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 30s
+
+  - job_name: 'ai-service'
+    static_configs:
+      - targets: ['ai-service:80']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Custom GetHome Metrics Exporter
+  - job_name: 'gethome-metrics-exporter'
+    static_configs:
+      - targets: ['gethome-metrics-exporter:8090']
+    scrape_interval: 30s
+
+  # AlertManager
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093'] 
