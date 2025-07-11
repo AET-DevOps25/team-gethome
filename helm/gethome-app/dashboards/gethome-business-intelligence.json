@@ -1,0 +1,1021 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": "prometheus",
+        "enable": true,
+        "expr": "increase(gethome_deployment_events_total[1h]) > 0",
+        "iconColor": "#1f77b4",
+        "name": "Deployments",
+        "showIn": 0,
+        "step": "1h",
+        "tags": ["deployment"],
+        "titleFormat": "Deployment: {{version}}",
+        "textFormat": "New deployment {{version}} at {{timestamp}}"
+      },
+      {
+        "datasource": "prometheus",
+        "enable": true,
+        "expr": "gethome_emergency_notifications_total > 0",
+        "iconColor": "#d62728",
+        "name": "Emergency Events",
+        "showIn": 0,
+        "step": "5m",
+        "tags": ["emergency", "safety"],
+        "titleFormat": "Emergency Alert",
+        "textFormat": "Emergency notification triggered in {{region}}"
+      }
+    ]
+  },
+  "description": "🎯 **GetHome Business Intelligence Dashboard**\n\nThis dashboard provides comprehensive insights into GetHome's business performance, user safety, and operational excellence. \n\n**Key Insights:**\n- **Safety First**: Monitor how our platform improves user safety through intelligent routing\n- **User Engagement**: Track user behavior and feature adoption\n- **Business Value**: Measure the real-world impact of safety features\n- **Operational Excellence**: Ensure system reliability and performance\n\n📊 **How to Use**: Each panel includes contextual annotations explaining what the metrics mean and what actions to take.",
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": null,
+  "iteration": 1701234567890,
+  "links": [
+    {
+      "icon": "external link",
+      "tags": ["gethome"],
+      "title": "GetHome Technical Docs",
+      "type": "link",
+      "url": "https://github.com/your-org/gethome/wiki"
+    },
+    {
+      "icon": "dashboard",
+      "tags": ["monitoring"],
+      "title": "Infrastructure Dashboard",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": "prometheus",
+      "description": "**📈 Business Impact Overview**\n\nThis section shows the real-world value GetHome provides:\n\n- **Incidents Prevented**: Estimated safety incidents avoided through our routing algorithms\n- **Distance Optimized**: Total kilometers saved through intelligent route planning\n- **Community Safety Score**: Overall safety contribution to the community\n\n**💡 Insight**: Higher values indicate greater positive impact on user safety and community well-being.\n\n**🚨 Action Items**:\n- If incidents prevented is declining: Review danger zone detection algorithms\n- If distance optimization is low: Analyze route calculation efficiency\n- If community safety score drops below 0.7: Investigate user adoption of safety features",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          },
+          "mappings": [],
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Incidents Prevented"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Distance Saved (km)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "km"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Community Safety Score"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "pieType": "pie",
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "values": ["value"]
+        }
+      },
+      "targets": [
+        {
+          "expr": "gethome_estimated_incidents_prevented_total",
+          "legendFormat": "Incidents Prevented",
+          "refId": "A"
+        },
+        {
+          "expr": "gethome_total_distance_saved_kilometers",
+          "legendFormat": "Distance Saved (km)",
+          "refId": "B"
+        },
+        {
+          "expr": "gethome_community_safety_contribution_score",
+          "legendFormat": "Community Safety Score",
+          "refId": "C"
+        }
+      ],
+      "title": "🎯 Business Impact Overview",
+      "type": "piechart"
+    },
+    {
+      "datasource": "prometheus",
+      "description": "**🚨 Emergency Response Excellence**\n\nMonitors the effectiveness of GetHome's emergency notification system:\n\n- **Response Efficiency**: How quickly emergencies are resolved (target: >0.8)\n- **False Alarm Rate**: Percentage of alerts that were false alarms (target: <15%)\n- **Active Emergencies**: Current number of ongoing emergency situations\n\n**💡 Key Insights**:\n- Response efficiency above 0.8 indicates excellent emergency handling\n- False alarm rate should remain below 15% to maintain system credibility\n- Active emergencies should trend to zero quickly\n\n**🎯 Optimization Opportunities**:\n- If response efficiency < 0.7: Review emergency contact notification speed\n- If false alarms > 20%: Improve alert validation algorithms\n- If active emergencies persist: Check emergency resolution workflows",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "green",
+                "value": 0.8
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Active Emergencies"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "False Alarm Rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "gethome_emergency_response_efficiency_score",
+          "legendFormat": "Response Efficiency",
+          "refId": "A"
+        },
+        {
+          "expr": "gethome_false_alarm_rate_percentage / 100",
+          "legendFormat": "False Alarm Rate",
+          "refId": "B"
+        },
+        {
+          "expr": "gethome_active_emergencies_count",
+          "legendFormat": "Active Emergencies",
+          "refId": "C"
+        }
+      ],
+      "title": "🚨 Emergency Response Excellence",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "prometheus",
+      "description": "**👥 User Engagement & Safety Adoption**\n\nTracks how users interact with GetHome's safety features:\n\n**Key Metrics**:\n- **Engagement Score**: Overall user engagement (0-1 scale)\n- **Safety Conscious Users**: Percentage using safety features regularly\n- **Route Planning Frequency**: Average routes planned per user daily\n\n**💡 Strategic Insights**:\n- Engagement score > 0.7 indicates strong user adoption\n- Safety conscious users should exceed 60% for community impact\n- Higher route planning frequency shows platform utility\n\n**📈 Growth Strategies**:\n- Low engagement: Improve onboarding and feature discovery\n- Low safety adoption: Enhance safety feature visibility\n- Low planning frequency: Investigate user journey friction",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Engagement Score"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "max",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Safety Conscious Users %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "gethome_user_engagement_score",
+          "legendFormat": "Engagement Score",
+          "refId": "A"
+        },
+        {
+          "expr": "gethome_safety_conscious_users_percentage",
+          "legendFormat": "Safety Conscious Users %",
+          "refId": "B"
+        },
+        {
+          "expr": "gethome_route_planning_frequency_per_user_per_day",
+          "legendFormat": "Routes/User/Day",
+          "refId": "C"
+        }
+      ],
+      "title": "👥 User Engagement & Safety Adoption",
+      "type": "barchart"
+    },
+    {
+      "datasource": "prometheus",
+      "description": "**🗺️ Route Safety Intelligence**\n\nProvides insights into route planning and safety optimization:\n\n**Safety Metrics**:\n- **Average Safety Score**: Overall safety rating of planned routes (0-1)\n- **Optimization Effectiveness**: Success rate of safety optimizations (%)\n- **Danger Zone Density**: Threat density per km² in coverage area\n\n**🎯 Performance Targets**:\n- Safety Score: >0.75 (excellent), 0.65-0.75 (good), <0.65 (needs improvement)\n- Optimization Effectiveness: >85% (excellent), 70-85% (good), <70% (review algorithms)\n- Danger Zone Density: Monitor for unusual spikes indicating emerging threats\n\n**🔧 Optimization Actions**:\n- Low safety scores: Review danger zone detection and route algorithms\n- Poor optimization: Analyze OpenRoute Service integration and response times\n- High danger density: Investigate threat sources and validation processes",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.65
+              },
+              {
+                "color": "green",
+                "value": 0.75
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "lcd-gauge"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Target"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "text": "❌ Poor"
+                      },
+                      "1": {
+                        "text": "⚠️ Fair"
+                      },
+                      "2": {
+                        "text": "✅ Good"
+                      },
+                      "3": {
+                        "text": "🎯 Excellent"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "gethome_safety_score_average",
+          "format": "table",
+          "legendFormat": "Safety Score",
+          "refId": "A"
+        },
+        {
+          "expr": "gethome_route_optimization_effectiveness_percentage / 100",
+          "format": "table",
+          "legendFormat": "Optimization Effectiveness",
+          "refId": "B"
+        },
+        {
+          "expr": "gethome_danger_zones_density_per_km2",
+          "format": "table",
+          "legendFormat": "Danger Zone Density",
+          "refId": "C"
+        }
+      ],
+      "title": "🗺️ Route Safety Intelligence",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "Time"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "Safety Score": "Safety Score",
+              "Optimization Effectiveness": "Optimization %",
+              "Danger Zone Density": "Danger Density/km²"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": "prometheus",
+      "description": "**⚡ System Performance & Reliability**\n\nMonitors GetHome's technical excellence and operational health:\n\n**Performance Indicators**:\n- **System Availability**: Overall uptime percentage (target: >99.5%)\n- **API Success Rates**: Success rates across all microservices (target: >95%)\n- **Cross-Service Latency**: Communication delays between services\n\n**🎯 SLA Targets**:\n- Availability: 99.9% (premium), 99.5% (standard), <99% (critical issue)\n- API Success: >98% (excellent), 95-98% (acceptable), <95% (investigate)\n- Latency: <100ms (excellent), 100-500ms (acceptable), >500ms (poor)\n\n**🚨 Alert Thresholds**:\n- Availability drops below 99%: Immediate investigation required\n- API success rate <95%: Service degradation alert\n- Latency >1s: Performance optimization needed",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 95
+              },
+              {
+                "color": "green",
+                "value": 98
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "System Availability"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "gethome_api_success_rate_percentage{service=\"auth\"}",
+          "legendFormat": "Auth Service",
+          "refId": "A"
+        },
+        {
+          "expr": "gethome_api_success_rate_percentage{service=\"routing\"}",
+          "legendFormat": "Routing Service",
+          "refId": "B"
+        },
+        {
+          "expr": "gethome_api_success_rate_percentage{service=\"message\"}",
+          "legendFormat": "Message Service",
+          "refId": "C"
+        },
+        {
+          "expr": "gethome_system_availability_score * 100",
+          "legendFormat": "System Availability",
+          "refId": "D"
+        }
+      ],
+      "title": "⚡ System Performance & Reliability",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "prometheus",
+      "description": "**🔍 Feature Adoption Analytics**\n\nTracks adoption rates of GetHome's key features to guide product development:\n\n**Feature Categories**:\n- **Emergency Contacts**: Essential safety network setup\n- **Danger Zone Reporting**: Community-driven threat intelligence\n- **Safe Routing**: Core navigation safety feature\n- **Location Sharing**: Emergency coordination capability\n\n**📊 Adoption Insights**:\n- >80% adoption: Feature is well-designed and valuable\n- 60-80% adoption: Good feature with room for improvement\n- <60% adoption: Consider UX improvements or user education\n\n**🎯 Product Strategy**:\n- Focus development on features with low adoption but high safety value\n- Investigate why highly adopted features work well\n- Consider sunsetting features with consistently low adoption\n\n**💡 Optimization Tips**:\n- Improve onboarding for low-adoption features\n- A/B test feature placement and messaging\n- Gather user feedback on adoption barriers",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "displayMode": "basic",
+            "orientation": "horizontal"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 6,
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "gethome_feature_adoption_rate_percentage{feature=\"emergency_contacts\"}",
+          "legendFormat": "Emergency Contacts",
+          "refId": "A"
+        },
+        {
+          "expr": "gethome_feature_adoption_rate_percentage{feature=\"danger_zone_reporting\"}",
+          "legendFormat": "Danger Zone Reporting",
+          "refId": "B"
+        },
+        {
+          "expr": "gethome_feature_adoption_rate_percentage{feature=\"safe_routing\"}",
+          "legendFormat": "Safe Routing",
+          "refId": "C"
+        },
+        {
+          "expr": "gethome_feature_adoption_rate_percentage{feature=\"location_sharing\"}",
+          "legendFormat": "Location Sharing",
+          "refId": "D"
+        }
+      ],
+      "title": "🔍 Feature Adoption Analytics",
+      "type": "bargauge"
+    },
+    {
+      "datasource": "prometheus",
+      "description": "**🎯 Predictive Analytics & Forecasting**\n\nProvides forward-looking insights to anticipate system needs and user behavior:\n\n**Predictive Metrics**:\n- **Peak Usage Prediction**: Anticipated load factor for next hour\n- **Resource Utilization Forecast**: Predicted resource needs\n- **Cost Efficiency Score**: Platform cost-effectiveness rating\n\n**🔮 Forecasting Value**:\n- Peak usage prediction enables proactive scaling\n- Resource forecasting optimizes infrastructure costs\n- Cost efficiency guides business optimization decisions\n\n**📈 Strategic Applications**:\n- Scale infrastructure before peak usage periods\n- Optimize resource allocation based on forecasts\n- Identify cost optimization opportunities\n- Plan capacity for anticipated growth\n\n**⚠️ Monitoring Guidelines**:\n- Peak factor >2.0: Prepare for high load\n- Resource utilization >80%: Consider scaling\n- Cost efficiency <0.6: Review optimization opportunities",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1.5
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cost Efficiency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0.6
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.8
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "Resource.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "gethome_peak_usage_prediction_factor",
+          "legendFormat": "Peak Usage Factor",
+          "refId": "A"
+        },
+        {
+          "expr": "gethome_resource_utilization_forecast_percentage{resource_type=\"cpu\"}",
+          "legendFormat": "Resource: CPU",
+          "refId": "B"
+        },
+        {
+          "expr": "gethome_resource_utilization_forecast_percentage{resource_type=\"memory\"}",
+          "legendFormat": "Resource: Memory",
+          "refId": "C"
+        },
+        {
+          "expr": "gethome_cost_efficiency_score",
+          "legendFormat": "Cost Efficiency",
+          "refId": "D"
+        }
+      ],
+      "title": "🎯 Predictive Analytics & Forecasting",
+      "type": "stat"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": [
+    "gethome",
+    "business-intelligence",
+    "safety",
+    "analytics"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": "prometheus",
+        "definition": "label_values(gethome_route_requests_total, service)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Service",
+        "multi": true,
+        "name": "service",
+        "options": [],
+        "query": {
+          "query": "label_values(gethome_route_requests_total, service)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "5m",
+          "value": "5m"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Time Range",
+        "multi": false,
+        "name": "interval",
+        "options": [
+          {
+            "selected": true,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": false,
+            "text": "15m",
+            "value": "15m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          }
+        ],
+        "query": "5m,15m,1h,6h,1d",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "🎯 GetHome Business Intelligence Dashboard",
+  "uid": "gethome-business-intelligence",
+  "version": 1
+} 

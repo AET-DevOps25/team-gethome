@@ -114,7 +114,7 @@ services:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/ai-service:develop
     imagePullPolicy: Always
-    port: 8000
+    port: 8085
     resources:
       limits:
         cpu: 500m
@@ -133,15 +133,15 @@ services:
         value: "true"
     service:
       type: ClusterIP
-      port: 80
-      targetPort: 8000
+      port: 8085
+      targetPort: 80
 
   # Auth Service
   auth-service:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/auth-service:develop
     imagePullPolicy: Always
-    port: 8080
+    port: 8081
     resources:
       limits:
         cpu: 500m
@@ -166,7 +166,7 @@ services:
         value: "DEBUG"
     service:
       type: ClusterIP
-      port: 80
+      port: 8081
       targetPort: 8080
 
   # message Service
@@ -174,7 +174,7 @@ services:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/message-service:develop
     imagePullPolicy: Always
-    port: 8080
+    port: 8082
     resources:
       limits:
         cpu: 500m
@@ -195,7 +195,7 @@ services:
         value: "DEBUG"
     service:
       type: ClusterIP
-      port: 80
+      port: 8082
       targetPort: 8080
 
   # Routing Service
@@ -203,7 +203,7 @@ services:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/routing-service:develop
     imagePullPolicy: Always
-    port: 8080
+    port: 8083
     resources:
       limits:
         cpu: 500m
@@ -224,7 +224,7 @@ services:
         value: "DEBUG"
     service:
       type: ClusterIP
-      port: 80
+      port: 8083
       targetPort: 8080
 
   # User Management Service
@@ -232,7 +232,7 @@ services:
     enabled: true
     image: ghcr.io/aet-devops25/team-gethome/usermanagement-service:develop
     imagePullPolicy: Always
-    port: 8080
+    port: 8084
     resources:
       limits:
         cpu: 500m
@@ -255,7 +255,7 @@ services:
         value: "DEBUG"
     service:
       type: ClusterIP
-      port: 80
+      port: 8084  
       targetPort: 8080
 
   # React Client
