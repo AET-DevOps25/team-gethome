@@ -107,31 +107,23 @@ jobs:
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build Docker image (no push)
-      id: build
-      uses: docker/build-push-action@v5
-      with:
-        context: ${{ matrix.service == 'react-client' && './client' || format('./server/{0}', matrix.service) }}
-        file: ${{ matrix.service == 'react-client' && './client/Dockerfile' || format('./server/{0}/Dockerfile', matrix.service) }}
-        push: false
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        platforms: linux/amd64,linux/arm64
-
-    - name: Login to Container Registry (fresh token for push)
+    - name: Login to Container Registry (fresh token)
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Push Docker image
-      run: |
-        # Push all the tags that were built
-        echo "${{ steps.meta.outputs.tags }}" | while read tag; do
-          echo "Pushing $tag"
-          docker push "$tag"
-        done
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ matrix.service == 'react-client' && './client' || format('./server/{0}', matrix.service) }}
+        file: ${{ matrix.service == 'react-client' && './client/Dockerfile' || format('./server/{0}/Dockerfile', matrix.service) }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        platforms: linux/amd64,linux/arm64
 
   # Deploy to Development
   deploy-development:
