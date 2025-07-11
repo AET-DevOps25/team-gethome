@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = process.env.REACT_APP_ROUTING_SERVICE_URL || 'http://localhost:8084/api';
+const BASE_URL = process.env.REACT_APP_ROUTING_SERVICE_URL || 'http://localhost:8083/api';
 
 class RoutingService {
   private getAuthHeader() {
@@ -22,16 +22,27 @@ class RoutingService {
     endLng: number,
     avoidDangerZones: boolean = true
   ): Promise<any> {
+    const requestBody = {
+      startLocation: {
+        latitude: startLat,
+        longitude: startLng
+      },
+      endLocation: {
+        latitude: endLat,
+        longitude: endLng
+      },
+      safetyPreference: avoidDangerZones ? 0.8 : 0.2
+    };
+    
+    console.log('Sending route planning request:', {
+      url: `${BASE_URL}/routes/plan`,
+      body: requestBody,
+      headers: this.getAuthHeader()
+    });
+    
     const res = await axios.post(
       `${BASE_URL}/routes/plan`,
-      {
-        startLatitude: startLat,
-        startLongitude: startLng,
-        endLatitude: endLat,
-        endLongitude: endLng,
-        avoidDangerZones: avoidDangerZones,
-        transportMode: 'WALKING'
-      },
+      requestBody,
       this.getAuthHeader()
     );
     return res.data;
@@ -52,22 +63,16 @@ class RoutingService {
   }
 
   // Danger Zones
-  async reportDangerZone(
-    latitude: number,
-    longitude: number,
-    description: string,
-    category: string,
-    dangerLevel: string
-  ): Promise<any> {
+  async reportDangerZone(request: {
+    name: string;
+    description: string;
+    dangerLevel: string;
+    location: { latitude: number; longitude: number };
+    tags: string[];
+  }): Promise<any> {
     const res = await axios.post(
       `${BASE_URL}/danger-zones/report`,
-      {
-        latitude,
-        longitude,
-        description,
-        category,
-        dangerLevel
-      },
+      request,
       this.getAuthHeader()
     );
     return res.data;

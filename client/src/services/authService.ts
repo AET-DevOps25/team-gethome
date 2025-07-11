@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { userManagementService } from './userManagementService';
 
-const API_URL = 'http://localhost:8082/api/v1';
+const API_URL = 'http://localhost:8081/api/v1';
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
