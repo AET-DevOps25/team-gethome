@@ -23,7 +23,7 @@ public class AuthControllerTest {
     private AuthController authController;
 
     @Test
-    void verifyEmail_ShouldReturnSuccessMessage() {
+    void verifyEmail_ShouldReturnSuccessMessage() throws Exception {
         // Arrange
         String token = "verificationToken";
         doNothing().when(authService).verifyEmail(any(VerifyEmailRequest.class));
@@ -39,7 +39,7 @@ public class AuthControllerTest {
     }
 
     @Test
-    void resendVerification_ShouldReturnSuccessMessage() {
+    void resendVerification_ShouldReturnSuccessMessage() throws Exception {
         // Arrange
         String email = "test@example.com";
         doNothing().when(authService).resendVerificationEmail(any(ResendVerificationRequest.class));
@@ -55,7 +55,7 @@ public class AuthControllerTest {
     }
 
     @Test
-    void forgotPassword_ShouldReturnSuccessMessage() {
+    void forgotPassword_ShouldReturnSuccessMessage() throws Exception {
         // Arrange
         String email = "test@example.com";
         doNothing().when(authService).sendPasswordResetEmail(any(ForgotPasswordRequest.class));
@@ -71,7 +71,7 @@ public class AuthControllerTest {
     }
 
     @Test
-    void resetPassword_ShouldReturnSuccessMessage() {
+    void resetPassword_ShouldReturnSuccessMessage() throws Exception {
         // Arrange
         String token = "resetToken";
         String newPassword = "newPassword123";

@@ -1,6 +1,13 @@
-FROM python:3.13-alpine
+FROM python:3.13-slim
 
 WORKDIR /code
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY ./requirements.txt /code/requirements.txt
 
