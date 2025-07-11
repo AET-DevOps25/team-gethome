@@ -19,7 +19,7 @@ on:
       environment:
         description: 'Environment to deploy to'
         required: true
-        default: 'development'
+        default: 'production'
         type: choice
         options:
           - development
@@ -131,6 +131,7 @@ jobs:
     if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
     runs-on: ubuntu-latest
     environment: development
+    needs: test-and-build
     
     steps:
     - name: Checkout code
@@ -167,6 +168,41 @@ jobs:
       run: |
         export KUBECONFIG=kubeconfig
         kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create GitHub Container Registry secret
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Create imagePullSecret for GitHub Container Registry
+        kubectl create secret docker-registry ghcr-secret \
+          --docker-server=ghcr.io \
+          --docker-username=${{ github.actor }} \
+          --docker-password=${{ secrets.GITHUB_TOKEN }} \
+          --docker-email=${{ github.actor }}@users.noreply.github.com \
+          --namespace devops25-k8s-gethome \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        echo "✅ GitHub Container Registry secret created successfully"
+
+    - name: Create application secrets
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Create secrets with actual credentials from GitHub secrets
+        kubectl create secret generic gethome-secrets \
+          --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
+          --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
+          --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
+          --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
+          --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
+          --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
+          --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
+          --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
+          --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
+          --namespace devops25-k8s-gethome \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        echo "✅ Application secrets created successfully"
 
     - name: Deploy to development
       run: |
@@ -210,7 +246,7 @@ jobs:
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     runs-on: ubuntu-latest
     environment: staging
-    needs: deploy-development
+    needs: test-and-build
     
     steps:
     - name: Checkout code
@@ -243,6 +279,26 @@ jobs:
       run: |
         export KUBECONFIG=kubeconfig
         kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create application secrets
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Create secrets with actual credentials from GitHub secrets
+        kubectl create secret generic gethome-secrets \
+          --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
+          --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
+          --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
+          --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
+          --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
+          --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
+          --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
+          --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
+          --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
+          --namespace devops25-k8s-gethome \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        echo "✅ Application secrets created successfully"
 
     - name: Deploy to staging
       run: |
@@ -288,7 +344,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     runs-on: ubuntu-latest
     environment: production
-    needs: deploy-staging
+    needs: test-and-build
     
     steps:
     - name: Checkout code
@@ -321,6 +377,26 @@ jobs:
       run: |
         export KUBECONFIG=kubeconfig
         kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create application secrets
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Create secrets with actual credentials from GitHub secrets
+        kubectl create secret generic gethome-secrets \
+          --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
+          --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
+          --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
+          --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
+          --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
+          --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
+          --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
+          --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
+          --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
+          --namespace devops25-k8s-gethome \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        echo "✅ Application secrets created successfully"
 
     - name: Deploy to production
       run: |
