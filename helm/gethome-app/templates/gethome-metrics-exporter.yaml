@@ -1,0 +1,101 @@
+{{- if .Values.monitoring.customExporter.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gethome-metrics-exporter
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: gethome-metrics-exporter
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gethome-metrics-exporter
+  template:
+    metadata:
+      labels:
+        app: gethome-metrics-exporter
+        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+        component: monitoring
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.monitoring.customExporter.port }}"
+        prometheus.io/path: "/metrics"
+    spec:
+      {{- if .Values.serviceAccount.enabled }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default "gethome-service-account" }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gethome-metrics-exporter
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.global.imageName }}/gethome-metrics-exporter:{{ .Values.global.imageTag }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: {{ .Values.monitoring.customExporter.port }}
+              name: metrics
+              protocol: TCP
+          env:
+            - name: MONGODB_URI
+              value: {{ .Values.monitoring.customExporter.env.MONGODB_URI | quote }}
+            - name: AUTH_SERVICE_URL
+              value: {{ .Values.monitoring.customExporter.env.AUTH_SERVICE_URL | quote }}
+            - name: ROUTING_SERVICE_URL
+              value: {{ .Values.monitoring.customExporter.env.ROUTING_SERVICE_URL | quote }}
+            - name: MESSAGE_SERVICE_URL
+              value: {{ .Values.monitoring.customExporter.env.MESSAGE_SERVICE_URL | quote }}
+            - name: USER_SERVICE_URL
+              value: {{ .Values.monitoring.customExporter.env.USER_SERVICE_URL | quote }}
+            - name: SCRAPE_INTERVAL
+              value: {{ .Values.monitoring.customExporter.env.SCRAPE_INTERVAL | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.monitoring.customExporter.env.METRICS_PORT | quote }}
+            - name: ENVIRONMENT
+              value: {{ .Values.global.environment | quote }}
+          {{- with .Values.monitoring.customExporter.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gethome-metrics-exporter
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: gethome-metrics-exporter
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: gethome-metrics-exporter
+  ports:
+    - port: {{ .Values.monitoring.customExporter.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+{{- end }} 

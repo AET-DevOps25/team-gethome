@@ -1,7 +1,15 @@
-FROM node:23-alpine as build
+FROM node:23-alpine AS build
 WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install dependencies with optimization flags
+RUN npm ci --ignore-scripts --no-audit --no-fund
+
+# Copy source code and build with optimization
 COPY . .
-RUN npm install && npm run build
+RUN GENERATE_SOURCEMAP=false npm run build
 
 FROM nginx:stable-alpine
 COPY --from=build /app/build /usr/share/nginx/html

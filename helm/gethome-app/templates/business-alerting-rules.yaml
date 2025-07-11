@@ -1,413 +1,437 @@
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: gethome-business-alerts
-  namespace: {{ .Values.namespace }}
-  labels:
-    app: gethome
-    component: business-monitoring
-    prometheus: kube-prometheus
-    role: alert-rules
-spec:
-  groups:
-  
-  # ===== SAFETY & SECURITY CRITICAL ALERTS =====
-  - name: gethome.safety.critical
-    interval: 30s
-    rules:
-    
-    - alert: GetHomeSafetyScoreCriticalDrop
-      expr: |
-        (
-          gethome_safety_score_average < 0.6
-        ) and (
-          gethome_safety_score_average offset 1h > 0.7
-        )
-      for: 5m
-      labels:
-        severity: critical
-        category: safety
-        business_impact: high
-        team: safety-engineering
-      annotations:
-        summary: "🚨 CRITICAL: GetHome Safety Score Dropped Dangerously Low"
-        description: |
-          The average safety score for GetHome routes has dropped to {{ $value | humanizePercentage }}, 
-          down from {{ with query "gethome_safety_score_average offset 1h" }}{{ . | first | value | humanizePercentage }}{{ end }} an hour ago.
-          
-          **Business Impact**: Users are being routed through potentially unsafe areas
-          **User Safety Risk**: HIGH - Immediate intervention required
-          
-          **Immediate Actions Required**:
-          1. Investigate danger zone detection algorithms
-          2. Review recent route calculations
-          3. Check OpenRoute Service integration
-          4. Validate safety scoring logic
-          
-          **Dashboard**: https://grafana.gethome.local/d/gethome-business-intelligence
-        runbook_url: "https://wiki.gethome.local/runbooks/safety-score-critical"
-        slack_channel: "#safety-critical"
-        escalation_policy: "safety-team-immediate"
-    
-    - alert: GetHomeEmergencyResponseDegraded
-      expr: |
-        gethome_emergency_response_efficiency_score < 0.7
-      for: 3m
-      labels:
-        severity: critical
-        category: emergency
-        business_impact: critical
-        team: emergency-response
-      annotations:
-        summary: "🚨 Emergency Response System Degraded"
-        description: |
-          Emergency response efficiency has dropped to {{ $value | humanizePercentage }}.
-          This means emergency situations are taking longer to resolve.
-          
-          **Life Safety Impact**: CRITICAL
-          **Current Active Emergencies**: {{ with query "gethome_active_emergencies_count" }}{{ . | first | value }}{{ end }}
-          
-          **Immediate Response Required**:
-          1. Check emergency notification delivery systems
-          2. Verify emergency contact reachability
-          3. Investigate notification service performance
-          4. Escalate to emergency services if needed
-        runbook_url: "https://wiki.gethome.local/runbooks/emergency-response-degraded"
-        slack_channel: "#emergency-critical"
-        escalation_policy: "emergency-team-immediate"
-    
-    - alert: GetHomeFalseAlarmRateSpike
-      expr: |
-        gethome_false_alarm_rate_percentage > 25
-      for: 10m
-      labels:
-        severity: warning
-        category: safety
-        business_impact: medium
-        team: safety-engineering
-      annotations:
-        summary: "⚠️ High False Alarm Rate Detected"
-        description: |
-          False alarm rate has increased to {{ $value }}%, which may erode user trust
-          in the emergency system.
-          
-          **Business Risk**: Loss of user confidence in emergency features
-          **Threshold Exceeded**: 25% false alarm rate
-          
-          **Investigation Steps**:
-          1. Review recent emergency alert patterns
-          2. Analyze user feedback and reports
-          3. Check emergency detection algorithms
-          4. Consider improving alert validation
-        runbook_url: "https://wiki.gethome.local/runbooks/false-alarm-investigation"
-        slack_channel: "#safety-alerts"
-  
-  # ===== USER BEHAVIOR & ENGAGEMENT ALERTS =====
-  - name: gethome.user.behavior
-    interval: 60s
-    rules:
-    
-    - alert: GetHomeUserEngagementDrop
-      expr: |
-        (
-          gethome_user_engagement_score < 0.5
-        ) and (
-          gethome_user_engagement_score offset 2h > 0.7
-        )
-      for: 15m
-      labels:
-        severity: warning
-        category: user_experience
-        business_impact: high
-        team: product
-      annotations:
-        summary: "📉 Significant User Engagement Drop"
-        description: |
-          User engagement score dropped from {{ with query "gethome_user_engagement_score offset 2h" }}{{ . | first | value | humanizePercentage }}{{ end }} 
-          to {{ $value | humanizePercentage }} in the last 2 hours.
-          
-          **Business Impact**: Potential user churn and reduced platform value
-          **Engagement Metrics**:
-          - Routes per user: {{ with query "gethome_route_planning_frequency_per_user_per_day" }}{{ . | first | value | printf "%.2f" }}{{ end }}/day
-          - Safety conscious users: {{ with query "gethome_safety_conscious_users_percentage" }}{{ . | first | value | printf "%.1f" }}{{ end }}%
-          
-          **Investigation Areas**:
-          1. Recent app updates or feature changes
-          2. Service performance issues
-          3. User onboarding flow problems
-          4. Safety feature adoption barriers
-        runbook_url: "https://wiki.gethome.local/runbooks/user-engagement-drop"
-        slack_channel: "#product-alerts"
-    
-    - alert: GetHomeSafetyFeatureAdoptionLow
-      expr: |
-        gethome_safety_conscious_users_percentage < 50
-      for: 30m
-      labels:
-        severity: warning
-        category: product
-        business_impact: medium
-        team: product
-      annotations:
-        summary: "⚠️ Low Safety Feature Adoption"
-        description: |
-          Only {{ $value }}% of users are regularly using safety features, below our 50% target.
-          
-          **Business Impact**: Reduced safety value proposition
-          **Feature Adoption Rates**:
-          {{- range query "gethome_feature_adoption_rate_percentage" }}
-          - {{ .Labels.feature }}: {{ .Value | printf "%.1f" }}%
-          {{- end }}
-          
-          **Improvement Actions**:
-          1. Review onboarding flow for safety features
-          2. A/B test safety feature messaging
-          3. Analyze user feedback on safety features
-          4. Consider gamification or incentives
-        runbook_url: "https://wiki.gethome.local/runbooks/feature-adoption-improvement"
-        slack_channel: "#product-strategy"
-    
-    - alert: GetHomeUserRetentionDeclining
-      expr: |
-        rate(gethome_user_retention_rate_percentage{period="30d"}[24h]) < -5
-      for: 2h
-      labels:
-        severity: warning
-        category: business
-        business_impact: high
-        team: growth
-      annotations:
-        summary: "📊 User Retention Rate Declining"
-        description: |
-          30-day user retention rate is declining at {{ $value }}% per day.
-          Current retention: {{ with query "gethome_user_retention_rate_percentage{period=\"30d\"}" }}{{ . | first | value | printf "%.1f" }}{{ end }}%
-          
-          **Business Impact**: Potential revenue loss and reduced user base
-          **Growth Metrics to Review**:
-          - New user onboarding completion rates
-          - Feature discovery and adoption
-          - User satisfaction scores
-          - Churn reasons and feedback
-        runbook_url: "https://wiki.gethome.local/runbooks/retention-decline"
-        slack_channel: "#growth-team"
-  
-  # ===== BUSINESS INTELLIGENCE ALERTS =====
-  - name: gethome.business.intelligence
-    interval: 120s
-    rules:
-    
-    - alert: GetHomeCommunityImpactDeclining
-      expr: |
-        gethome_community_safety_contribution_score < 0.6
-      for: 20m
-      labels:
-        severity: warning
-        category: business
-        business_impact: medium
-        team: safety-engineering
-      annotations:
-        summary: "📈 Community Safety Impact Below Target"
-        description: |
-          Community safety contribution score is {{ $value | humanizePercentage }}, below our 60% target.
-          
-          **Business Impact**: Reduced value proposition and community benefit
-          **Safety Metrics**:
-          - Incidents prevented: {{ with query "gethome_estimated_incidents_prevented_total" }}{{ . | first | value | printf "%.0f" }}{{ end }}
-          - Distance optimized: {{ with query "gethome_total_distance_saved_kilometers" }}{{ . | first | value | printf "%.0f" }}{{ end }} km
-          - Active danger zones: {{ with query "gethome_active_danger_zones_count" }}{{ . | first | value }}{{ end }}
-          
-          **Improvement Areas**:
-          1. Enhance route optimization algorithms
-          2. Improve danger zone detection accuracy
-          3. Increase user adoption of safety features
-          4. Review community reporting mechanisms
-        runbook_url: "https://wiki.gethome.local/runbooks/community-impact"
-        slack_channel: "#business-intelligence"
-    
-    - alert: GetHomeRouteOptimizationIneffective
-      expr: |
-        gethome_route_optimization_effectiveness_percentage < 70
-      for: 15m
-      labels:
-        severity: warning
-        category: performance
-        business_impact: medium
-        team: routing-engineering
-      annotations:
-        summary: "🗺️ Route Optimization Below Performance Target"
-        description: |
-          Route optimization effectiveness is {{ $value }}%, below our 70% target.
-          
-          **Performance Impact**: Users not receiving optimal safe routes
-          **Current Metrics**:
-          - Average safety score: {{ with query "gethome_safety_score_average" }}{{ . | first | value | humanizePercentage }}{{ end }}
-          - Danger zones avoided: {{ with query "rate(gethome_danger_zones_avoided_total[1h])" }}{{ . | first | value | printf "%.1f" }}{{ end }}/hour
-          - Route calculation time: {{ with query "histogram_quantile(0.95, gethome_route_calculation_duration_seconds_bucket)" }}{{ . | first | value | humanizeDuration }}{{ end }} (95th percentile)
-          
-          **Investigation Steps**:
-          1. Check OpenRoute Service API performance
-          2. Review danger zone polygon generation
-          3. Analyze route calculation algorithms
-          4. Validate safety scoring logic
-        runbook_url: "https://wiki.gethome.local/runbooks/route-optimization"
-        slack_channel: "#routing-alerts"
-  
-  # ===== PREDICTIVE & OPERATIONAL ALERTS =====
-  - name: gethome.predictive.operations
-    interval: 300s
-    rules:
-    
-    - alert: GetHomePeakUsagePredicted
-      expr: |
-        gethome_peak_usage_prediction_factor > 2.0
-      for: 5m
-      labels:
-        severity: info
-        category: operations
-        business_impact: low
-        team: infrastructure
-      annotations:
-        summary: "📈 High Usage Peak Predicted"
-        description: |
-          Peak usage factor of {{ $value | printf "%.1f" }}x normal load is predicted for the next hour.
-          
-          **Operational Impact**: Potential system strain during peak
-          **Resource Forecasts**:
-          {{- range query "gethome_resource_utilization_forecast_percentage" }}
-          - {{ .Labels.resource_type }}: {{ .Value | printf "%.1f" }}%
-          {{- end }}
-          
-          **Preparation Actions**:
-          1. Scale up critical services preemptively
-          2. Monitor system performance closely
-          3. Ensure emergency response capacity
-          4. Prepare for potential alert volume increase
-        runbook_url: "https://wiki.gethome.local/runbooks/peak-usage-preparation"
-        slack_channel: "#operations"
-    
-    - alert: GetHomeCostEfficiencyDeclining
-      expr: |
-        gethome_cost_efficiency_score < 0.6
-      for: 1h
-      labels:
-        severity: info
-        category: business
-        business_impact: low
-        team: finops
-      annotations:
-        summary: "💰 Cost Efficiency Below Target"
-        description: |
-          Cost efficiency score is {{ $value | humanizePercentage }}, below our 60% target.
-          
-          **Business Impact**: Higher operational costs reducing profitability
-          **Optimization Opportunities**:
-          1. Review resource utilization and scaling policies
-          2. Optimize expensive API calls (OpenRoute, maps)
-          3. Analyze storage and compute efficiency
-          4. Consider reserved capacity for predictable workloads
-          
-          **Monthly Cost Trends**: Monitor for sustained inefficiency
-        runbook_url: "https://wiki.gethome.local/runbooks/cost-optimization"
-        slack_channel: "#finops"
-  
-  # ===== DATA QUALITY & FRESHNESS ALERTS =====
-  - name: gethome.data.quality
-    interval: 180s
-    rules:
-    
-    - alert: GetHomeDangerZoneDataStale
-      expr: |
-        gethome_data_freshness_minutes{data_type="danger_zones"} > 15
-      for: 10m
-      labels:
-        severity: warning
-        category: data_quality
-        business_impact: medium
-        team: safety-engineering
-      annotations:
-        summary: "⏰ Danger Zone Data Becoming Stale"
-        description: |
-          Danger zone data is {{ $value | humanizeDuration }} old, exceeding our 15-minute freshness target.
-          
-          **Safety Impact**: Users may not be warned about recent dangers
-          **Data Freshness Status**:
-          {{- range query "gethome_data_freshness_minutes" }}
-          - {{ .Labels.data_type }}: {{ .Value | humanizeDuration }}
-          {{- end }}
-          
-          **Investigation Steps**:
-          1. Check danger zone reporting service
-          2. Verify database synchronization
-          3. Review data pipeline health
-          4. Validate real-time update mechanisms
-        runbook_url: "https://wiki.gethome.local/runbooks/data-freshness"
-        slack_channel: "#data-quality"
-    
-    - alert: GetHomeLocationDataOutdated
-      expr: |
-        gethome_data_freshness_minutes{data_type="user_locations"} > 5
-      for: 5m
-      labels:
-        severity: critical
-        category: data_quality
-        business_impact: high
-        team: location-services
-      annotations:
-        summary: "📍 User Location Data Critically Outdated"
-        description: |
-          User location data is {{ $value | humanizeDuration }} old, which severely impacts 
-          emergency response and route safety.
-          
-          **Emergency Impact**: CRITICAL - Emergency services may not reach users
-          **Route Impact**: Users receiving routes based on outdated location data
-          
-          **Immediate Actions**:
-          1. Check location service health
-          2. Verify GPS/location permissions
-          3. Investigate mobile app location tracking
-          4. Review location data pipeline
-        runbook_url: "https://wiki.gethome.local/runbooks/location-data-critical"
-        slack_channel: "#emergency-critical"
-        escalation_policy: "location-team-immediate"
+# GetHome Application - Advanced Business Intelligence Alerting Rules
+# Business-focused alerting with safety, engagement, and performance intelligence
 
-  # ===== CROSS-SERVICE HEALTH ALERTS =====
-  - name: gethome.service.health
-    interval: 60s
-    rules:
+{{- if .Values.monitoring.prometheus.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gethome-business-alerting-rules
+  namespace: {{ .Values.global.namespace | default "devops25-k8s-gethome" }}
+  labels:
+    app: prometheus
+    component: business-rules
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+data:
+  business-alerting-rules.yaml: |
+    groups:
+    # ===== SAFETY & SECURITY CRITICAL ALERTS =====
+    - name: gethome.safety.critical
+      interval: 30s
+      rules:
+      
+      - alert: GetHomeSafetyScoreCritical
+        expr: |
+          gethome_safety_score_average < 0.4
+        for: 5m
+        labels:
+          severity: critical
+          category: safety
+          business_impact: high
+          team: safety-engineering
+        annotations:
+          summary: "🚨 CRITICAL: GetHome Safety Score Dropped Dangerously Low"
+          description: |
+            The average safety score for GetHome routes has dropped to {{ "{{ $value | humanizePercentage }}" }}, 
+            down from {{ "{{ with query \"gethome_safety_score_average offset 1h\" }}{{ . | first | value | humanizePercentage }}{{ end }}" }} an hour ago.
+            
+            **Business Impact**: Users are being routed through potentially unsafe areas
+            **User Safety Risk**: HIGH - Immediate intervention required
+            
+            **Immediate Actions Required**:
+            1. Investigate danger zone detection algorithms
+            2. Review recent route calculations
+            3. Check OpenRoute Service integration
+            4. Validate safety scoring logic
+            
+            **Dashboard**: https://grafana.gethome.local/d/gethome-business-intelligence
+          runbook_url: "https://wiki.gethome.local/runbooks/safety-score-critical"
+          slack_channel: "#safety-critical"
+          escalation_policy: "safety-team-immediate"
+      
+      - alert: GetHomeEmergencyResponseDegraded
+        expr: |
+          gethome_emergency_response_efficiency_score < 0.7
+        for: 3m
+        labels:
+          severity: critical
+          category: emergency
+          business_impact: critical
+          team: emergency-response
+        annotations:
+          summary: "🚨 Emergency Response System Degraded"
+          description: |
+            Emergency response efficiency has dropped to {{ "{{ $value | humanizePercentage }}" }}.
+            This means emergency situations are taking longer to resolve.
+            
+            **Life Safety Impact**: CRITICAL
+            **Current Active Emergencies**: {{ "{{ with query \"gethome_active_emergencies_count\" }}{{ . | first | value }}{{ end }}" }}
+            
+            **Immediate Response Required**:
+            1. Check emergency notification delivery systems
+            2. Verify emergency contact reachability
+            3. Investigate notification service performance
+            4. Escalate to emergency services if needed
+          runbook_url: "https://wiki.gethome.local/runbooks/emergency-response-degraded"
+          slack_channel: "#emergency-critical"
+          escalation_policy: "emergency-team-immediate"
+      
+      - alert: GetHomeFalseAlarmRateSpike
+        expr: |
+          gethome_false_alarm_rate_percentage > 25
+        for: 10m
+        labels:
+          severity: warning
+          category: safety
+          business_impact: medium
+          team: safety-engineering
+        annotations:
+          summary: "⚠️ High False Alarm Rate Detected"
+          description: |
+            False alarm rate has increased to {{ "{{ $value }}" }}%, which may erode user trust
+            in the emergency system.
+            
+            **Business Risk**: Loss of user confidence in emergency features
+            **Threshold Exceeded**: 25% false alarm rate
+            
+            **Investigation Steps**:
+            1. Review recent emergency alert patterns
+            2. Analyze user feedback and reports
+            3. Check emergency detection algorithms
+            4. Consider improving alert validation
+          runbook_url: "https://wiki.gethome.local/runbooks/false-alarm-investigation"
+          slack_channel: "#safety-alerts"
     
-    - alert: GetHomeServiceDegradationPattern
-      expr: |
-        (
-          avg(gethome_api_success_rate_percentage) < 95
-        ) and (
-          count(gethome_api_success_rate_percentage < 90) >= 2
-        )
-      for: 10m
-      labels:
-        severity: warning
-        category: system_health
-        business_impact: high
-        team: platform
-      annotations:
-        summary: "🔧 Multi-Service Performance Degradation"
-        description: |
-          Multiple GetHome services are experiencing performance issues.
-          Average API success rate: {{ with query "avg(gethome_api_success_rate_percentage)" }}{{ . | first | value | printf "%.1f" }}{{ end }}%
-          
-          **Affected Services**:
-          {{- range query "gethome_api_success_rate_percentage < 90" }}
-          - {{ .Labels.service }}: {{ .Value | printf "%.1f" }}%
-          {{- end }}
-          
-          **Business Impact**: 
-          - Reduced user experience
-          - Potential safety feature failures
-          - Emergency response delays
-          
-          **System-wide Investigation Required**:
-          1. Check shared infrastructure (databases, networks)
-          2. Review recent deployments across services
-          3. Investigate resource constraints
-          4. Monitor cascade failure patterns
-        runbook_url: "https://wiki.gethome.local/runbooks/multi-service-degradation"
-        slack_channel: "#platform-alerts" 
+    # ===== USER BEHAVIOR & ENGAGEMENT ALERTS =====
+    - name: gethome.user.behavior
+      interval: 60s
+      rules:
+      
+      - alert: GetHomeUserEngagementDrop
+        expr: |
+          (
+            gethome_user_engagement_score < 0.5
+          ) and (
+            gethome_user_engagement_score offset 2h > 0.7
+          )
+        for: 15m
+        labels:
+          severity: warning
+          category: user_experience
+          business_impact: high
+          team: product
+        annotations:
+          summary: "📉 Significant User Engagement Drop"
+          description: |
+            User engagement score dropped from {{ "{{ with query \"gethome_user_engagement_score offset 2h\" }}{{ . | first | value | humanizePercentage }}{{ end }}" }} 
+            to {{ "{{ $value | humanizePercentage }}" }} in the last 2 hours.
+            
+            **Business Impact**: Potential user churn and reduced platform value
+            **Engagement Metrics**:
+            - Routes per user: {{ "{{ with query \"gethome_route_planning_frequency_per_user_per_day\" }}{{ . | first | value | printf \"%.2f\" }}{{ end }}" }}/day
+            - Safety conscious users: {{ "{{ with query \"gethome_safety_conscious_users_percentage\" }}{{ . | first | value | printf \"%.1f\" }}{{ end }}" }}%
+            
+            **Investigation Areas**:
+            1. Recent app updates or feature changes
+            2. Service performance issues
+            3. User onboarding flow problems
+            4. Safety feature adoption barriers
+          runbook_url: "https://wiki.gethome.local/runbooks/user-engagement-drop"
+          slack_channel: "#product-alerts"
+      
+      - alert: GetHomeSafetyFeatureAdoptionLow
+        expr: |
+          gethome_safety_conscious_users_percentage < 50
+        for: 30m
+        labels:
+          severity: warning
+          category: product
+          business_impact: medium
+          team: product
+        annotations:
+          summary: "⚠️ Low Safety Feature Adoption"
+          description: |
+            Only {{ "{{ $value }}" }}% of users are regularly using safety features, below our 50% target.
+            
+            **Business Impact**: Reduced safety value proposition
+            **Feature Adoption Rates**:
+            {{ "{{- range query \"gethome_feature_adoption_rate_percentage\" }}" }}
+            - {{ "{{ .Labels.feature }}" }}: {{ "{{ .Value | printf \"%.1f\" }}" }}%
+            {{ "{{- end }}" }}
+            
+            **Improvement Actions**:
+            1. Review onboarding flow for safety features
+            2. A/B test safety feature messaging
+            3. Analyze user feedback on safety features
+            4. Consider gamification or incentives
+          runbook_url: "https://wiki.gethome.local/runbooks/feature-adoption-improvement"
+          slack_channel: "#product-strategy"
+      
+      - alert: GetHomeUserRetentionDeclining
+        expr: |
+          rate(gethome_user_retention_rate_percentage{period="30d"}[24h]) < -5
+        for: 2h
+        labels:
+          severity: warning
+          category: business
+          business_impact: high
+          team: growth
+        annotations:
+          summary: "📊 User Retention Rate Declining"
+          description: |
+            30-day user retention rate is declining at {{ "{{ $value }}" }}% per day.
+            Current retention: {{ "{{ with query \"gethome_user_retention_rate_percentage{period=\\\"30d\\\"}\" }}{{ . | first | value | printf \"%.1f\" }}{{ end }}" }}%
+            
+            **Business Impact**: Potential revenue loss and reduced user base
+            **Growth Metrics to Review**:
+            - New user onboarding completion rates
+            - Feature discovery and adoption
+            - User satisfaction scores
+            - Churn reasons and feedback
+          runbook_url: "https://wiki.gethome.local/runbooks/retention-decline"
+          slack_channel: "#growth-team"
+    
+    # ===== BUSINESS INTELLIGENCE ALERTS =====
+    - name: gethome.business.intelligence
+      interval: 120s
+      rules:
+      
+      - alert: GetHomeCommunityImpactDeclining
+        expr: |
+          gethome_community_safety_contribution_score < 0.6
+        for: 20m
+        labels:
+          severity: warning
+          category: business
+          business_impact: medium
+          team: safety-engineering
+        annotations:
+          summary: "📈 Community Safety Impact Below Target"
+          description: |
+            Community safety contribution score is {{ "{{ $value | humanizePercentage }}" }}, below our 60% target.
+            
+            **Business Impact**: Reduced value proposition and community benefit
+            **Safety Metrics**:
+            - Incidents prevented: {{ "{{ with query \"gethome_estimated_incidents_prevented_total\" }}{{ . | first | value | printf \"%.0f\" }}{{ end }}" }}
+            - Distance optimized: {{ "{{ with query \"gethome_total_distance_saved_kilometers\" }}{{ . | first | value | printf \"%.0f\" }}{{ end }}" }} km
+            - Active danger zones: {{ "{{ with query \"gethome_active_danger_zones_count\" }}{{ . | first | value }}{{ end }}" }}
+            
+            **Improvement Areas**:
+            1. Enhance route optimization algorithms
+            2. Improve danger zone detection accuracy
+            3. Increase user adoption of safety features
+            4. Review community reporting mechanisms
+          runbook_url: "https://wiki.gethome.local/runbooks/community-impact"
+          slack_channel: "#business-intelligence"
+      
+      - alert: GetHomeRouteOptimizationIneffective
+        expr: |
+          gethome_route_optimization_effectiveness_percentage < 70
+        for: 15m
+        labels:
+          severity: warning
+          category: performance
+          business_impact: medium
+          team: routing-engineering
+        annotations:
+          summary: "🗺️ Route Optimization Below Performance Target"
+          description: |
+            Route optimization effectiveness is {{ "{{ $value }}" }}%, below our 70% target.
+            
+            **Performance Impact**: Users not receiving optimal safe routes
+            **Current Metrics**:
+            - Average safety score: {{ "{{ with query \"gethome_safety_score_average\" }}{{ . | first | value | humanizePercentage }}{{ end }}" }}
+            - Danger zones avoided: {{ "{{ with query \"rate(gethome_danger_zones_avoided_total[1h])\" }}{{ . | first | value | printf \"%.1f\" }}{{ end }}" }}/hour
+            - Route calculation time: {{ "{{ with query \"histogram_quantile(0.95, gethome_route_calculation_duration_seconds_bucket)\" }}{{ . | first | value | humanizeDuration }}{{ end }}" }} (95th percentile)
+            
+            **Investigation Steps**:
+            1. Check OpenRoute Service API performance
+            2. Review danger zone polygon generation
+            3. Analyze route calculation algorithms
+            4. Validate safety scoring logic
+          runbook_url: "https://wiki.gethome.local/runbooks/route-optimization"
+          slack_channel: "#routing-alerts"
+    
+    # ===== PREDICTIVE & OPERATIONAL ALERTS =====
+    - name: gethome.predictive.operations
+      interval: 300s
+      rules:
+      
+      - alert: GetHomePeakUsagePredicted
+        expr: |
+          predict_linear(gethome_user_activity_factor[1h], 3600) > 3
+        for: 10m
+        labels:
+          severity: warning
+          category: capacity
+          business_impact: medium
+          team: infrastructure
+        annotations:
+          summary: "📈 High Usage Period Predicted"
+          description: |
+            Peak usage factor of {{ "{{ $value | printf \"%.1f\" }}" }}x normal load is predicted for the next hour.
+            
+            **Business Impact**: Potential service degradation during peak times
+            **Capacity Planning**:
+            - Current active users: {{ "{{ with query \"gethome_active_users_count\" }}{{ . | first | value }}{{ end }}" }}
+            - Route requests/min: {{ "{{ with query \"rate(gethome_route_requests_total[5m]) * 60\" }}{{ . | first | value | printf \"%.0f\" }}{{ end }}" }}
+            - Emergency alerts active: {{ "{{ with query \"gethome_active_emergency_notifications_count\" }}{{ . | first | value }}{{ end }}" }}
+            
+            **Proactive Actions**:
+            1. Scale up routing service instances
+            2. Pre-warm emergency notification systems
+            3. Monitor safety system performance
+            4. Prepare communication channels
+          runbook_url: "https://wiki.gethome.local/runbooks/peak-usage-preparation"
+          slack_channel: "#infrastructure-alerts"
+      
+      - alert: GetHomeCostEfficiencyDeclining
+        expr: |
+          gethome_cost_efficiency_score < 0.6
+        for: 30m
+        labels:
+          severity: warning
+          category: business
+          business_impact: medium
+          team: finance
+        annotations:
+          summary: "💰 Cost Efficiency Below Target"
+          description: |
+            Cost efficiency score is {{ "{{ $value | humanizePercentage }}" }}, below our 60% target.
+            
+            **Business Impact**: Increased operational costs reduce profitability
+            **Cost Analysis**:
+            - Cost per route calculation: {{ "{{ with query \"gethome_cost_per_route_calculation_dollars\" }}{{ . | first | value | printf \"$%.4f\" }}{{ end }}" }}
+            - Monthly infrastructure spend: {{ "{{ with query \"gethome_monthly_infrastructure_cost_dollars\" }}{{ . | first | value | printf \"$%.0f\" }}{{ end }}" }}
+            - Cost per active user: {{ "{{ with query \"gethome_cost_per_active_user_dollars\" }}{{ . | first | value | printf \"$%.2f\" }}{{ end }}" }}
+            
+            **Optimization Opportunities**:
+            1. Review OpenRoute Service API usage efficiency
+            2. Optimize route caching strategies
+            3. Analyze container resource allocation
+            4. Consider batch processing optimizations
+          runbook_url: "https://wiki.gethome.local/runbooks/cost-optimization"
+          slack_channel: "#business-optimization"
+    
+    # ===== DATA FRESHNESS & QUALITY ALERTS =====
+    - name: gethome.data.quality
+      interval: 60s
+      rules:
+      
+      - alert: GetHomeDangerZoneDataStale
+        expr: |
+          time() - gethome_danger_zone_last_update_timestamp > 900
+        for: 5m
+        labels:
+          severity: warning
+          category: data_quality
+          business_impact: high
+          team: safety-engineering
+        annotations:
+          summary: "⏰ Danger Zone Data Getting Stale"
+          description: |
+            Danger zone data is {{ "{{ $value | humanizeDuration }}" }} old, exceeding our 15-minute freshness target.
+            
+            **Safety Impact**: Users may not receive current safety information
+            **Data Freshness Status**:
+            - Last update: {{ "{{ with query \"gethome_danger_zone_last_update_timestamp\" }}{{ . | first | value | humanizeTimestamp }}{{ end }}" }}
+            - Active danger zones: {{ "{{ with query \"gethome_active_danger_zones_count\" }}{{ . | first | value }}{{ end }}" }}
+            - Danger zone sources: {{ "{{ with query \"gethome_danger_zone_sources_active_count\" }}{{ . | first | value }}{{ end }}" }}
+            
+            **Investigation Steps**:
+            1. Check danger zone data collection services
+            2. Verify external data source connectivity
+            3. Review data processing pipeline
+            4. Validate database update mechanisms
+          runbook_url: "https://wiki.gethome.local/runbooks/danger-zone-data-freshness"
+          slack_channel: "#data-quality"
+      
+      - alert: GetHomeUserLocationDataStale
+        expr: |
+          time() - gethome_user_location_last_update_timestamp > 600
+        for: 3m
+        labels:
+          severity: critical
+          category: data_quality
+          business_impact: critical
+          team: safety-engineering
+        annotations:
+          summary: "🚨 Critical: User Location Data Severely Stale"
+          description: |
+            User location data is {{ "{{ $value | humanizeDuration }}" }} old, which severely impacts
+            emergency response capabilities and route safety calculations.
+            
+            **Critical Safety Impact**: Emergency services cannot locate users accurately
+            **Emergency Preparedness**: COMPROMISED
+            
+            **Immediate Actions**:
+            1. Check user location update services
+            2. Verify mobile app location reporting
+            3. Test emergency notification delivery
+            4. Escalate to emergency response team if needed
+          runbook_url: "https://wiki.gethome.local/runbooks/location-data-critical"
+          slack_channel: "#emergency-critical"
+          escalation_policy: "emergency-team-immediate"
+    
+    # ===== EMERGENCY SYSTEM HEALTH =====
+    - name: gethome.emergency.system
+      interval: 15s
+      rules:
+      
+      - alert: GetHomeEmergencyNotificationFailure
+        expr: |
+          rate(gethome_emergency_notification_failures_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+          category: emergency
+          business_impact: critical
+          team: emergency-response
+        annotations:
+          summary: "🆘 Emergency Notification System Failures"
+          description: |
+            Emergency notification system is experiencing failures at a rate of
+            {{ "{{ $value | printf \"%.2f\" }}" }} failures per second.
+            
+            **Life Safety Impact**: CRITICAL - Emergency alerts may not reach users
+            **System Status**: DEGRADED
+            
+            **Emergency Response**:
+            1. Activate backup notification systems
+            2. Test manual emergency broadcast capability
+            3. Contact emergency services coordination
+            4. Implement emergency communication protocols
+            
+            **Current Emergency Status**:
+            - Active emergencies: {{ "{{ with query \"gethome_active_emergencies_count\" }}{{ . | first | value }}{{ end }}" }}
+            - Users in danger zones: {{ "{{ with query \"gethome_users_in_danger_zones_count\" }}{{ . | first | value }}{{ end }}" }}
+          runbook_url: "https://wiki.gethome.local/runbooks/emergency-notification-failure"
+          slack_channel: "#emergency-critical"
+          escalation_policy: "emergency-team-immediate"
+          pager_duty: "emergency-team"
+      
+      - alert: GetHomeEmergencyResponseTimeHigh
+        expr: |
+          histogram_quantile(0.95, gethome_emergency_response_time_seconds_bucket) > 30
+        for: 2m
+        labels:
+          severity: warning
+          category: emergency
+          business_impact: high
+          team: emergency-response
+        annotations:
+          summary: "⏱️ Emergency Response Time Elevated"
+          description: |
+            95th percentile emergency response time is {{ "{{ $value | humanizeDuration }}" }},
+            exceeding our 30-second target.
+            
+            **Safety Impact**: Delayed emergency assistance
+            **Performance Target**: Under 30 seconds for 95% of emergencies
+            
+            **Performance Analysis**:
+            1. Review emergency detection algorithms
+            2. Check notification delivery systems
+            3. Analyze emergency contact reachability
+            4. Validate escalation procedures
+          runbook_url: "https://wiki.gethome.local/runbooks/emergency-response-time"
+          slack_channel: "#emergency-alerts"
+{{- end }} 

@@ -32,6 +32,7 @@ jobs:
   # Build Java Services
   build-java-services:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         service: [auth-service, usermanagement-service, message-service, routing-service]
@@ -48,7 +49,7 @@ jobs:
           - service: routing-service
             context: ./server/routing-service
             dockerfile: Dockerfile
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -61,13 +62,6 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Extract metadata
       id: meta
@@ -84,7 +78,15 @@ jobs:
           org.opencontainers.image.description=GetHome ${{ matrix.service }} microservice
           org.opencontainers.image.vendor=GetHome Team
 
+    - name: Login to Container Registry (fresh token)
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Build and push Docker image
+      id: build
       uses: docker/build-push-action@v5
       with:
         context: ${{ matrix.context }}
@@ -92,13 +94,25 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
 
-  # Build AI Service (Python)
-  build-ai-service:
+  # Build Python Services (AI Service and Metrics Exporter)
+  build-python-services:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        service: [ai-service, gethome-metrics-exporter]
+        include:
+          - service: ai-service
+            context: ./server/ai-service
+            dockerfile: Dockerfile
+            description: "GetHome AI and Machine Learning Service"
+          - service: gethome-metrics-exporter
+            context: ./server/gethome-metrics-exporter
+            dockerfile: Dockerfile
+            description: "GetHome Custom Prometheus Business Intelligence Exporter"
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -111,43 +125,43 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ai-service
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable={{is_default_branch}}
         labels: |
-          org.opencontainers.image.title=GetHome AI Service
-          org.opencontainers.image.description=GetHome AI and Machine Learning Service
+          org.opencontainers.image.title=GetHome ${{ matrix.service }}
+          org.opencontainers.image.description=${{ matrix.description }}
           org.opencontainers.image.vendor=GetHome Team
 
+    - name: Login to Container Registry (fresh token)
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Build and push Docker image
+      id: build
       uses: docker/build-push-action@v5
       with:
-        context: ./server/ai-service
-        file: ./server/ai-service/Dockerfile
+        context: ${{ matrix.context }}
+        file: ${{ matrix.context }}/${{ matrix.dockerfile }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
 
   # Build React Client
   build-react-client:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -161,13 +175,6 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Extract metadata
       id: meta
@@ -184,7 +191,15 @@ jobs:
           org.opencontainers.image.description=GetHome Frontend React Application
           org.opencontainers.image.vendor=GetHome Team
 
+    - name: Login to Container Registry (fresh token)
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Build and push Docker image
+      id: build
       uses: docker/build-push-action@v5
       with:
         context: ./client
@@ -192,13 +207,11 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
 
   # Generate Container Registry Summary
   generate-summary:
-    needs: [build-java-services, build-ai-service, build-react-client]
+    needs: [build-java-services, build-python-services, build-react-client]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -206,45 +219,69 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const { data: packages } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
-            package_type: "container",
-            org: "${{ github.repository_owner }}",
-            package_name: "${{ github.repository_name }}"
-          });
+          try {
+            // Extract repository name from full repository path
+            const repoName = '${{ github.repository }}'.split('/')[1];
+            
+            // Try to get package information - this might not exist for first-time deployments
+            let packageInfo = '';
+            try {
+              const { data: packages } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
+                package_type: "container",
+                org: "${{ github.repository_owner }}",
+                package_name: repoName
+              });
+              packageInfo = `### Package Versions: ${packages.length} versions found`;
+            } catch (error) {
+              packageInfo = '### Package Versions: No existing packages (first deployment)';
+              console.log('Package not found yet - this is normal for first deployments');
+            }
           
-          const summary = `## Container Registry Summary
-          
-          ### Built Images
-          - **Java Services**: auth-service, usermanagement-service, message-service, routing-service
-          - **AI Service**: ai-service (Python)
-          - **Frontend**: react-client
-          
-          ### Registry Location
-          All images are available at: \`ghcr.io/${{ github.repository }}/\`
-          
-          ### Image Tags
-          - \`latest\`: Latest stable version
-          - \`main\`: Main branch builds
-          - \`develop\`: Development branch builds
-          - \`<commit-sha>\`: Specific commit builds
-          
-          ### Usage Example
-          \`\`\`yaml
-          services:
-            auth-service:
-              image: ghcr.io/${{ github.repository }}/auth-service:latest
-          \`\`\`
-          
-          ### Access
-          - **Public**: Images are publicly accessible
-          - **Authentication**: Use \`ghcr.io\` as registry
-          - **Credentials**: Use GitHub token for private repos
-          
-          Built at: ${new Date().toISOString()}`;
-          
-          await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-            body: summary,
-          }); 
+            const summary = `## Container Registry Summary
+            
+            ### Built Images
+            - **Java Services**: auth-service, usermanagement-service, message-service, routing-service
+            - **Python Services**: ai-service, gethome-metrics-exporter
+            - **Frontend**: react-client
+            
+            ### Registry Location
+            All images are available at: \`ghcr.io/${{ github.repository }}/\`
+            
+            ${packageInfo}
+            
+            ### Image Tags
+            - \`latest\`: Latest stable version
+            - \`main\`: Main branch builds
+            - \`develop\`: Development branch builds
+            - \`<commit-sha>\`: Specific commit builds
+            
+            ### Usage Example
+            \`\`\`yaml
+            services:
+              auth-service:
+                image: ghcr.io/${{ github.repository }}/auth-service:latest
+            \`\`\`
+            
+            ### Access
+            - **Public**: Images are publicly accessible
+            - **Authentication**: Use \`ghcr.io\` as registry
+            - **Credentials**: Use GitHub token for private repos
+            
+            Built at: ${new Date().toISOString()}`;
+            
+            // Only create comment if this is a pull request
+            if (context.issue.number) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: summary,
+              });
+            } else {
+              console.log('Summary generated successfully for push event');
+              console.log(summary);
+            }
+          } catch (error) {
+            console.log('Error generating summary:', error.message);
+            console.log('This is not critical - build process completed successfully');
+          } 

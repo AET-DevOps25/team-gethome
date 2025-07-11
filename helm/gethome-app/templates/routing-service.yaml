@@ -1,4 +1,4 @@
-{{- if .Values.services.routing-service.enabled }}
+{{- if index .Values.services "routing-service" "enabled" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,22 +31,22 @@ spec:
       {{- end }}
       containers:
         - name: routing-service
-          image: {{ .Values.services.routing-service.image }}
-          imagePullPolicy: {{ .Values.services.routing-service.imagePullPolicy }}
+          image: {{ index .Values.services "routing-service" "image" }}
+          imagePullPolicy: {{ index .Values.services "routing-service" "imagePullPolicy" }}
           ports:
-            - containerPort: {{ .Values.services.routing-service.port }}
+            - containerPort: {{ index .Values.services "routing-service" "port" }}
               name: http
           {{- with .Values.containerSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.services.routing-service.resources }}
+          {{- with index .Values.services "routing-service" "resources" }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.services.routing-service.env }}
+          {{- if index .Values.services "routing-service" "env" }}
           env:
-            {{- range .Values.services.routing-service.env }}
+            {{- range index .Values.services "routing-service" "env" }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
@@ -54,13 +54,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.services.routing-service.port }}
+              port: {{ index .Values.services "routing-service" "port" }}
             initialDelaySeconds: 60
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.services.routing-service.port }}
+              port: {{ index .Values.services "routing-service" "port" }}
             initialDelaySeconds: 30
             periodSeconds: 5
 ---
@@ -73,12 +73,12 @@ metadata:
     app: routing-service
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
-  type: {{ .Values.services.routing-service.service.type }}
+  type: {{ index .Values.services "routing-service" "service" "type" }}
   selector:
     app: routing-service
   ports:
-    - port: {{ .Values.services.routing-service.service.port }}
-      targetPort: {{ .Values.services.routing-service.service.targetPort }}
+    - port: {{ index .Values.services "routing-service" "service" "port" }}
+      targetPort: {{ index .Values.services "routing-service" "service" "targetPort" }}
       protocol: TCP
       name: http
 {{- end }}

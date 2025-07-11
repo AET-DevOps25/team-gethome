@@ -1,4 +1,4 @@
-{{- if .Values.services.message-service.enabled }}
+{{- if index .Values.services "message-service" "enabled" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,22 +31,22 @@ spec:
       {{- end }}
       containers:
         - name: message-service
-          image: {{ .Values.services.message-service.image }}
-          imagePullPolicy: {{ .Values.services.message-service.imagePullPolicy }}
+          image: {{ index .Values.services "message-service" "image" }}
+          imagePullPolicy: {{ index .Values.services "message-service" "imagePullPolicy" }}
           ports:
-            - containerPort: {{ .Values.services.message-service.port }}
+            - containerPort: {{ index .Values.services "message-service" "port" }}
               name: http
           {{- with .Values.containerSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.services.message-service.resources }}
+          {{- with index .Values.services "message-service" "resources" }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.services.message-service.env }}
+          {{- if index .Values.services "message-service" "env" }}
           env:
-            {{- range .Values.services.message-service.env }}
+            {{- range index .Values.services "message-service" "env" }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
@@ -54,13 +54,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.services.message-service.port }}
+              port: {{ index .Values.services "message-service" "port" }}
             initialDelaySeconds: 60
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.services.message-service.port }}
+              port: {{ index .Values.services "message-service" "port" }}
             initialDelaySeconds: 30
             periodSeconds: 5
 ---
@@ -73,12 +73,12 @@ metadata:
     app: message-service
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
-  type: {{ .Values.services.message-service.service.type }}
+  type: {{ index .Values.services "message-service" "service" "type" }}
   selector:
     app: message-service
   ports:
-    - port: {{ .Values.services.message-service.service.port }}
-      targetPort: {{ .Values.services.message-service.service.targetPort }}
+    - port: {{ index .Values.services "message-service" "service" "port" }}
+      targetPort: {{ index .Values.services "message-service" "service" "targetPort" }}
       protocol: TCP
       name: http
 {{- end }}

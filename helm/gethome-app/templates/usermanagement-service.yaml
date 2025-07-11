@@ -1,4 +1,4 @@
-{{- if .Values.services.usermanagement-service.enabled }}
+{{- if index .Values.services "usermanagement-service" "enabled" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,22 +31,22 @@ spec:
       {{- end }}
       containers:
         - name: usermanagement-service
-          image: {{ .Values.services.usermanagement-service.image }}
-          imagePullPolicy: {{ .Values.services.usermanagement-service.imagePullPolicy }}
+          image: {{ index .Values.services "usermanagement-service" "image" }}
+          imagePullPolicy: {{ index .Values.services "usermanagement-service" "imagePullPolicy" }}
           ports:
-            - containerPort: {{ .Values.services.usermanagement-service.port }}
+            - containerPort: {{ index .Values.services "usermanagement-service" "port" }}
               name: http
           {{- with .Values.containerSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.services.usermanagement-service.resources }}
+          {{- with index .Values.services "usermanagement-service" "resources" }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.services.usermanagement-service.env }}
+          {{- if index .Values.services "usermanagement-service" "env" }}
           env:
-            {{- range .Values.services.usermanagement-service.env }}
+            {{- range index .Values.services "usermanagement-service" "env" }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
@@ -54,13 +54,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.services.usermanagement-service.port }}
+              port: {{ index .Values.services "usermanagement-service" "port" }}
             initialDelaySeconds: 60
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: {{ .Values.services.usermanagement-service.port }}
+              port: {{ index .Values.services "usermanagement-service" "port" }}
             initialDelaySeconds: 30
             periodSeconds: 5
 ---
@@ -73,12 +73,12 @@ metadata:
     app: usermanagement-service
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
-  type: {{ .Values.services.usermanagement-service.service.type }}
+  type: {{ index .Values.services "usermanagement-service" "service" "type" }}
   selector:
     app: usermanagement-service
   ports:
-    - port: {{ .Values.services.usermanagement-service.service.port }}
-      targetPort: {{ .Values.services.usermanagement-service.service.targetPort }}
+    - port: {{ index .Values.services "usermanagement-service" "service" "port" }}
+      targetPort: {{ index .Values.services "usermanagement-service" "service" "targetPort" }}
       protocol: TCP
       name: http
 {{- end }} 

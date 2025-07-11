@@ -69,10 +69,12 @@
   },
   "jest": {
     "transformIgnorePatterns": [
-      "node_modules/(?!(axios|react-leaflet)/)"
+      "node_modules/(?!(axios)/)"
     ],
     "moduleNameMapper": {
-      "\\.(css|less|scss|sass)$": "identity-obj-proxy"
+      "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+      "react-leaflet": "<rootDir>/src/__mocks__/react-leaflet.js",
+      "leaflet": "<rootDir>/src/__mocks__/leaflet.js"
     }
   }
 }

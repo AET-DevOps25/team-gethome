@@ -11,34 +11,25 @@ data:
   alertmanager.yml: |
     global:
       resolve_timeout: 5m
-      slack_api_url: '{{ .Values.monitoring.alertmanager.slack.webhookUrl }}'
 
     route:
-      group_by: ['alertname']
+      group_by: ['alertname', 'severity']
       group_wait: 10s
       group_interval: 10s
       repeat_interval: 1h
-      receiver: 'slack-notifications'
+      receiver: 'web.hook'
       routes:
         - match:
             severity: critical
-          receiver: 'slack-critical'
+          receiver: 'critical-alerts'
           continue: true
 
     receivers:
-      - name: 'slack-notifications'
-        slack_configs:
-          - channel: '#{{ .Values.monitoring.alertmanager.slack.channel }}'
-            title: '{{ "{{" }}.GroupLabels.alertname{{ "}}" }}'
-            text: '{{ "{{" }} range .Alerts }}{{ "{{" }} .Annotations.summary }}{{ "{{" }} end }}'
-            send_resolved: true
-
-      - name: 'slack-critical'
-        slack_configs:
-          - channel: '#{{ .Values.monitoring.alertmanager.slack.criticalChannel }}'
-            title: '🚨 CRITICAL: {{ "{{" }}.GroupLabels.alertname{{ "}}" }}'
-            text: '{{ "{{" }} range .Alerts }}{{ "{{" }} .Annotations.summary }}{{ "{{" }} end }}'
-            send_resolved: true
+      - name: 'web.hook'
+        # Basic webhook receiver - alerts visible in AlertManager UI
+        
+      - name: 'critical-alerts'
+        # Critical alerts receiver - can be extended later
 
 ---
 apiVersion: v1
@@ -52,12 +43,9 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  {{- if .Values.monitoring.alertmanager.storage.storageClass }}
-  storageClassName: {{ .Values.monitoring.alertmanager.storage.storageClass }}
-  {{- end }}
   resources:
     requests:
-      storage: {{ .Values.monitoring.alertmanager.storage.size }}
+      storage: 5Gi
 
 ---
 apiVersion: apps/v1
@@ -88,8 +76,8 @@ spec:
       {{- end }}
       containers:
         - name: alertmanager
-          image: {{ .Values.monitoring.alertmanager.image }}
-          imagePullPolicy: {{ .Values.monitoring.alertmanager.imagePullPolicy }}
+          image: "prom/alertmanager:v0.25.0"
+          imagePullPolicy: IfNotPresent
           args:
             - '--config.file=/etc/alertmanager/alertmanager.yml'
             - '--storage.path=/alertmanager'

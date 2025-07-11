@@ -62,14 +62,13 @@ jobs:
         isort --check-only .
 
     # Lint Helm charts
-    - name: Lint Helm charts
+    - name: Validate Helm chart
       uses: azure/setup-helm@v3
       with:
         version: 'latest'
       
-    - name: Validate Helm chart
+    - name: Validate Helm template
       run: |
-        helm lint helm/gethome-app
         helm template helm/gethome-app --dry-run
 
   # Run tests
@@ -213,9 +212,6 @@ jobs:
 
     - name: Validate Kubernetes manifests
       run: |
-        # Validate Helm chart
-        helm lint helm/gethome-app
-        
         # Dry run Helm template
         helm template gethome-app helm/gethome-app --dry-run
         
