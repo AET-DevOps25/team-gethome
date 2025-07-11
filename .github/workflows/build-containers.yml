@@ -93,8 +93,6 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
 
   # Build AI Service (Python)
@@ -143,8 +141,6 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
 
   # Build React Client
@@ -195,8 +191,6 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
 
   # Generate Container Registry Summary
