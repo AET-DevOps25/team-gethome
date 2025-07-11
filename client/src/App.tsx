@@ -77,21 +77,30 @@ const App: React.FC = () => {
                     />
                     
                     <Route
-                    path="/profile"
-                    element={
-                        <ProfileCheckRoute>
-                        <HomePage />
-                        </ProfileCheckRoute>
-                    }
+                        path="/profile"
+                        element={
+                            <ProfileCheckRoute>
+                                <HomePage />
+                            </ProfileCheckRoute>
+                        }
                     />
 
                     <Route
-                    path="/map"
-                    element={
-                        <ProfileCheckRoute>
-                        <MapPage />
-                        </ProfileCheckRoute>
-                    }
+                        path="/profile/settings"
+                        element={
+                            <ProfileCheckRoute>
+                                <ProfileSettingsPage />
+                            </ProfileCheckRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/map"
+                        element={
+                            <ProfileCheckRoute>
+                                <MapPage />
+                            </ProfileCheckRoute>
+                        }
                     />
 
                     <Route

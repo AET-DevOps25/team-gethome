@@ -168,7 +168,7 @@ const ChatPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50" style={{ paddingBottom: '80px' }}>
       {/* Header */}
       <Box sx={{ bgcolor: 'primary.main', color: 'white', p: 2 }}>
         <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -211,7 +211,7 @@ const ChatPage: React.FC = () => {
       </Box>
 
       {/* Chat Messages */}
-      <Box sx={{ flex: 1, px: 2, py: 1, overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, px: 2, py: 1, overflow: 'hidden', minHeight: 0 }}>
         <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           {sessionLoading ? (
             <Box display="flex" justifyContent="center" alignItems="center" flex={1}>
@@ -229,7 +229,7 @@ const ChatPage: React.FC = () => {
           ) : (
             <>
               {/* Messages Area */}
-              <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+              <Box sx={{ flex: 1, overflow: 'auto', p: 2, minHeight: 0 }}>
                 {messages.map((msg) => (
                   <Box
                     key={msg.id}
@@ -336,7 +336,7 @@ const ChatPage: React.FC = () => {
       </Box>
 
       {/* Quick Actions */}
-      <Box sx={{ px: 2, py: 1 }}>
+      <Box sx={{ px: 2, py: 2, pb: 2 }}>
         <Card>
           <CardContent sx={{ py: 2 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -378,7 +378,7 @@ const ChatPage: React.FC = () => {
         aria-label="emergency"
         sx={{
           position: 'fixed',
-          bottom: 80,
+          bottom: 100,
           right: 16,
           zIndex: 1000,
         }}

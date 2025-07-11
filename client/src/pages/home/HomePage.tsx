@@ -183,7 +183,8 @@ const HomePage: React.FC = () => {
           <Grid item>
             <IconButton 
               color="inherit" 
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate('/profile/settings')}
+              aria-label="Edit profile"
             >
               <Edit />
             </IconButton>
