@@ -206,45 +206,69 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const { data: packages } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
-            package_type: "container",
-            org: "${{ github.repository_owner }}",
-            package_name: "${{ github.repository_name }}"
-          });
+          try {
+            // Extract repository name from full repository path
+            const repoName = '${{ github.repository }}'.split('/')[1];
+            
+            // Try to get package information - this might not exist for first-time deployments
+            let packageInfo = '';
+            try {
+              const { data: packages } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
+                package_type: "container",
+                org: "${{ github.repository_owner }}",
+                package_name: repoName
+              });
+              packageInfo = `### Package Versions: ${packages.length} versions found`;
+            } catch (error) {
+              packageInfo = '### Package Versions: No existing packages (first deployment)';
+              console.log('Package not found yet - this is normal for first deployments');
+            }
           
-          const summary = `## Container Registry Summary
-          
-          ### Built Images
-          - **Java Services**: auth-service, usermanagement-service, message-service, routing-service
-          - **AI Service**: ai-service (Python)
-          - **Frontend**: react-client
-          
-          ### Registry Location
-          All images are available at: \`ghcr.io/${{ github.repository }}/\`
-          
-          ### Image Tags
-          - \`latest\`: Latest stable version
-          - \`main\`: Main branch builds
-          - \`develop\`: Development branch builds
-          - \`<commit-sha>\`: Specific commit builds
-          
-          ### Usage Example
-          \`\`\`yaml
-          services:
-            auth-service:
-              image: ghcr.io/${{ github.repository }}/auth-service:latest
-          \`\`\`
-          
-          ### Access
-          - **Public**: Images are publicly accessible
-          - **Authentication**: Use \`ghcr.io\` as registry
-          - **Credentials**: Use GitHub token for private repos
-          
-          Built at: ${new Date().toISOString()}`;
-          
-          await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-            body: summary,
-          }); 
+            const summary = `## Container Registry Summary
+            
+            ### Built Images
+            - **Java Services**: auth-service, usermanagement-service, message-service, routing-service
+            - **AI Service**: ai-service (Python)
+            - **Frontend**: react-client
+            
+            ### Registry Location
+            All images are available at: \`ghcr.io/${{ github.repository }}/\`
+            
+            ${packageInfo}
+            
+            ### Image Tags
+            - \`latest\`: Latest stable version
+            - \`main\`: Main branch builds
+            - \`develop\`: Development branch builds
+            - \`<commit-sha>\`: Specific commit builds
+            
+            ### Usage Example
+            \`\`\`yaml
+            services:
+              auth-service:
+                image: ghcr.io/${{ github.repository }}/auth-service:latest
+            \`\`\`
+            
+            ### Access
+            - **Public**: Images are publicly accessible
+            - **Authentication**: Use \`ghcr.io\` as registry
+            - **Credentials**: Use GitHub token for private repos
+            
+            Built at: ${new Date().toISOString()}`;
+            
+            // Only create comment if this is a pull request
+            if (context.issue.number) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: summary,
+              });
+            } else {
+              console.log('Summary generated successfully for push event');
+              console.log(summary);
+            }
+          } catch (error) {
+            console.log('Error generating summary:', error.message);
+            console.log('This is not critical - build process completed successfully');
+          } 
