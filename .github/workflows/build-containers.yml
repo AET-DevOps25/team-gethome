@@ -32,6 +32,7 @@ jobs:
   # Build Java Services
   build-java-services:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         service: [auth-service, usermanagement-service, message-service, routing-service]
@@ -99,6 +100,7 @@ jobs:
   # Build AI Service (Python)
   build-ai-service:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -148,6 +150,7 @@ jobs:
   # Build React Client
   build-react-client:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
