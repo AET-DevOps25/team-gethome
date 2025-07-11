@@ -7,6 +7,16 @@ const L = {
     iconAnchor: [12, 41],
   })),
 
+  // Mock Icon object with Default property
+  Icon: {
+    Default: {
+      mergeOptions: jest.fn(),
+      prototype: {
+        _getIconUrl: jest.fn(() => 'mock-icon-url'),
+      },
+    },
+  },
+
   // Mock divIcon function
   divIcon: jest.fn(() => ({
     className: 'mock-div-icon',

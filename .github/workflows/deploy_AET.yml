@@ -82,7 +82,7 @@ jobs:
       run: |
         cd client
         npm ci
-        npm test -- --watchAll=false
+        npm test
 
     # Test AI service
     - name: Test AI service
