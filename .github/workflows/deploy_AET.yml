@@ -499,6 +499,7 @@ jobs:
           --set services.message-service.image=ghcr.io/${{ env.IMAGE_NAME }}/message-service:latest \
           --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest \
           --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest \
+          --set secrets.enabled=false \
           --wait --timeout=15m
 
     - name: Verify deployment
