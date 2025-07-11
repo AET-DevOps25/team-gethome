@@ -149,12 +149,9 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  {{- if .Values.monitoring.prometheus.storage.storageClass }}
-  storageClassName: {{ .Values.monitoring.prometheus.storage.storageClass }}
-  {{- end }}
   resources:
     requests:
-      storage: {{ .Values.monitoring.prometheus.storage.size }}
+      storage: {{ .Values.monitoring.prometheus.storage }}
 
 ---
 apiVersion: apps/v1

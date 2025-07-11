@@ -55,6 +55,8 @@ monitoring:
   # Prometheus Configuration
   prometheus:
     enabled: true
+    image: "prom/prometheus:v2.40.0"
+    imagePullPolicy: IfNotPresent
     retention: "15d"
     storage: "50Gi"
     scrapeInterval: "15s"
@@ -84,7 +86,12 @@ monitoring:
   # Grafana Configuration  
   grafana:
     enabled: true
+    image: "grafana/grafana:9.3.0"
+    imagePullPolicy: IfNotPresent
+    adminUser: "admin"
     adminPassword: "admin123"
+    storage:
+      size: "10Gi"
     resources:
       requests:
         memory: "256Mi"
