@@ -5,6 +5,7 @@ global:
   namespace: devops25-k8s-gethome
   environment: production
   imageRegistry: "ghcr.io"
+  imageName: "aet-devops25/team-gethome"
   imagePullSecrets:
     - name: ghcr-secret
   imageTag: "latest"
