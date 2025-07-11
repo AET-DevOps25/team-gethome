@@ -22,7 +22,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/api/v1/message/**", "/actuator/**").permitAll()
                 .requestMatchers("/api/emergency/**").authenticated()
                 .requestMatchers("/api/messages/**").authenticated()
                 .requestMatchers("/api/templates/**").authenticated()

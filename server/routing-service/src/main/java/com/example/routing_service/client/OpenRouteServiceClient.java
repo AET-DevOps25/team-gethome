@@ -1,16 +1,16 @@
 package com.example.routing_service.client;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "openrouteservice", url = "${routing.api.url}")
+@FeignClient(name = "openrouteservice", url = "${routing.api.url}", configuration = com.example.routing_service.feignconfig.OpenRouteServiceConfig.class)
 public interface OpenRouteServiceClient {
     
     @PostMapping("/directions/foot-walking")
-    OpenRouteResponse getWalkingRoute(@RequestBody OpenRouteRequest request,
-                                     @RequestHeader("Authorization") String apiKey);
+    OpenRouteResponse getWalkingRoute(@RequestBody OpenRouteRequest request);
     
     // DTOs for OpenRouteService API
     record OpenRouteRequest(double[][] coordinates, 
@@ -18,25 +18,32 @@ public interface OpenRouteServiceClient {
                            String units, 
                            String language, 
                            String geometry_simplify,
-                           boolean continue_straight) {}
+                           boolean continue_straight,
+                           @JsonInclude(JsonInclude.Include.NON_NULL)
+                           Options options) {}
+
+    record Options(AvoidPolygons avoid_polygons) {}
+    record AvoidPolygons(String type, Object coordinates) {}
     
-    record OpenRouteResponse(OpenRouteFeature[] features, 
+    record OpenRouteResponse(OpenRouteRoute[] routes, 
                             OpenRouteMetadata metadata) {}
     
-    record OpenRouteFeature(OpenRouteGeometry geometry, 
-                           OpenRouteProperties properties, 
-                           String type) {}
+    record OpenRouteRoute(OpenRouteSummary summary, 
+                         OpenRouteSegment[] segments,
+                         String geometry,
+                         int[] way_points) {}
     
-    record OpenRouteGeometry(double[][] coordinates, String type) {}
-    
-    record OpenRouteProperties(double distance, 
-                              double duration, 
-                              OpenRouteSegment[] segments) {}
+    record OpenRouteSummary(double distance, double duration) {}
     
     record OpenRouteSegment(double distance, 
                            double duration, 
-                           String instruction, 
-                           double[][] way_points) {}
+                           OpenRouteStep[] steps) {}
+    
+    record OpenRouteStep(double distance, 
+                        double duration, 
+                        String instruction, 
+                        String name,
+                        int[] way_points) {}
     
     record OpenRouteMetadata(String attribution, 
                             String service, 

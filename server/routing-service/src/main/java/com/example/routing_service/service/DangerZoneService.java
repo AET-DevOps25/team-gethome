@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 
 @Service
 @RequiredArgsConstructor
@@ -57,18 +58,16 @@ public class DangerZoneService {
                 .reportedAt(LocalDateTime.now())
                 .expiresAt(LocalDateTime.now().plusDays(30))
                 .tags(request.getTags())
-                .location(DangerZone.Location.builder()
-                    .type("Point")
-                    .coordinates(new double[]{
-                        request.getLocation().getLongitude(),
-                        request.getLocation().getLatitude()
-                    })
-                    .build())
+                .location(new GeoJsonPoint(
+                    request.getLocation().getLongitude(),
+                    request.getLocation().getLatitude()
+                ))
                 .reportCount(1)
                 .reportedByUsers(List.of(userId))
                 .build();
 
             log.info("Created new danger zone: {}", newZone.getId());
+            log.info("Saving new danger zone entity: {}", newZone);
             return dangerZoneRepository.save(newZone);
         }
     }
@@ -143,13 +142,10 @@ public class DangerZoneService {
         zone.setDescription(request.getDescription());
         zone.setDangerLevel(request.getDangerLevel());
         zone.setTags(request.getTags());
-        zone.setLocation(DangerZone.Location.builder()
-            .type("Point")
-            .coordinates(new double[]{
-                request.getLocation().getLongitude(),
-                request.getLocation().getLatitude()
-            })
-            .build());
+        zone.setLocation(new GeoJsonPoint(
+            request.getLocation().getLongitude(),
+            request.getLocation().getLatitude()
+        ));
         
         log.info("User {} updated danger zone: {}", userId, zoneId);
         return dangerZoneRepository.save(zone);

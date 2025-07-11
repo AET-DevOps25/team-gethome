@@ -14,6 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -49,6 +51,9 @@ class RoutingServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Set the @Value field manually for tests
+        ReflectionTestUtils.setField(routingService, "openRouteApiKey", "test-openroute-api-key-for-testing");
+        
         routeRequest = RouteRequest.builder()
             .startLocation(RouteRequest.Location.builder()
                 .latitude(40.7128)
@@ -91,8 +96,14 @@ class RoutingServiceTest {
                     .duration(1800)
                     .instructions("Walk straight")
                     .coordinates(Arrays.asList(
-                        new Double[]{40.7128, -74.0060},
-                        new Double[]{40.7589, -73.9851}
+                        Route.Location.builder()
+                            .latitude(40.7128)
+                            .longitude(-74.0060)
+                            .build(),
+                        Route.Location.builder()
+                            .latitude(40.7589)
+                            .longitude(-73.9851)
+                            .build()
                     ))
                     .build()
             ))
@@ -109,12 +120,13 @@ class RoutingServiceTest {
                 .id("zone-1")
                 .name("Dark Alley")
                 .dangerLevel(DangerZone.DangerLevel.MEDIUM)
+                .location(new GeoJsonPoint(-74.0050, 40.7130))
                 .build()
         );
 
         when(dangerZoneRepository.findNearbyActiveDangerZones(anyDouble(), anyDouble(), anyDouble(), any()))
             .thenReturn(nearbyZones);
-        when(openRouteServiceClient.getWalkingRoute(any(), anyString()))
+        when(openRouteServiceClient.getWalkingRoute(any()))
             .thenReturn(createMockOpenRouteResponse());
         when(safetyAnalysisService.calculateSafetyScore(any(), anyList()))
             .thenReturn(0.85);
@@ -196,24 +208,57 @@ class RoutingServiceTest {
     }
 
     private OpenRouteServiceClient.OpenRouteResponse createMockOpenRouteResponse() {
+        // Create a valid polyline-encoded geometry string that represents a simple route
+        // This encodes two points: start and end coordinates
+        String validPolylineGeometry = "u{~vFd~lbMnI|\\";
+        
+        OpenRouteServiceClient.OpenRouteStep step = 
+            new OpenRouteServiceClient.OpenRouteStep(
+                1500.0, 
+                1800.0, 
+                "Walk straight down the street", 
+                "Test Street", 
+                new int[]{0, 1}
+            );
+        
         OpenRouteServiceClient.OpenRouteSegment segment = 
-            new OpenRouteServiceClient.OpenRouteSegment(1500.0, 1800.0, "Walk straight", new double[][]{{-74.0060, 40.7128}});
+            new OpenRouteServiceClient.OpenRouteSegment(
+                1500.0, 
+                1800.0, 
+                new OpenRouteServiceClient.OpenRouteStep[]{step}
+            );
         
-        OpenRouteServiceClient.OpenRouteProperties properties = 
-            new OpenRouteServiceClient.OpenRouteProperties(1500.0, 1800.0, new OpenRouteServiceClient.OpenRouteSegment[]{segment});
+        OpenRouteServiceClient.OpenRouteSummary summary = 
+            new OpenRouteServiceClient.OpenRouteSummary(1500.0, 1800.0);
         
-        OpenRouteServiceClient.OpenRouteGeometry geometry = 
-            new OpenRouteServiceClient.OpenRouteGeometry(new double[][]{{-74.0060, 40.7128}, {-73.9851, 40.7589}}, "LineString");
-        
-        OpenRouteServiceClient.OpenRouteFeature feature = 
-            new OpenRouteServiceClient.OpenRouteFeature(geometry, properties, "Feature");
+        OpenRouteServiceClient.OpenRouteRoute route = 
+            new OpenRouteServiceClient.OpenRouteRoute(
+                summary, 
+                new OpenRouteServiceClient.OpenRouteSegment[]{segment}, 
+                validPolylineGeometry, 
+                new int[]{0, 1}
+            );
         
         OpenRouteServiceClient.OpenRouteQuery query = 
-            new OpenRouteServiceClient.OpenRouteQuery(new double[][]{{-74.0060, 40.7128}, {-73.9851, 40.7589}}, "foot-walking", "recommended", "meters", "en");
+            new OpenRouteServiceClient.OpenRouteQuery(
+                new double[][]{{-74.0060, 40.7128}, {-73.9851, 40.7589}}, 
+                "foot-walking", 
+                "recommended", 
+                "m", 
+                "en"
+            );
         
         OpenRouteServiceClient.OpenRouteMetadata metadata = 
-            new OpenRouteServiceClient.OpenRouteMetadata("ORS", "routing", System.currentTimeMillis(), query);
+            new OpenRouteServiceClient.OpenRouteMetadata(
+                "ORS", 
+                "routing", 
+                System.currentTimeMillis(), 
+                query
+            );
         
-        return new OpenRouteServiceClient.OpenRouteResponse(new OpenRouteServiceClient.OpenRouteFeature[]{feature}, metadata);
+        return new OpenRouteServiceClient.OpenRouteResponse(
+            new OpenRouteServiceClient.OpenRouteRoute[]{route}, 
+            metadata
+        );
     }
 } 

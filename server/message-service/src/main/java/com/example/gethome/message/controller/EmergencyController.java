@@ -27,8 +27,13 @@ public class EmergencyController {
         String userId = authentication.getName();
         log.warn("Emergency notification request from user: {}", userId);
         
-        EmergencyNotificationResponse response = emergencyNotificationService.sendEmergencyNotification(request, "Bearer " + getAuthToken());
-        return ResponseEntity.ok(response);
+        try {
+            EmergencyNotificationResponse response = emergencyNotificationService.sendEmergencyNotification(request, "Bearer " + getAuthToken());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to send emergency notification for user: {}", userId, e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @GetMapping("/notifications")

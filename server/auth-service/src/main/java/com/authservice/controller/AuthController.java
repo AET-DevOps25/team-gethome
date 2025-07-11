@@ -20,38 +20,62 @@ public class AuthController {
     public ResponseEntity<AuthenticationResponse> register(
             @RequestBody RegisterRequest request
     ) {
-        return ResponseEntity.ok(service.register(request));
+        try {
+            return ResponseEntity.ok(service.register(request));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping("/login")
     public ResponseEntity<AuthenticationResponse> authenticate(
             @RequestBody AuthenticationRequest request
     ) {
-        return ResponseEntity.ok(service.authenticate(request));
+        try {
+            return ResponseEntity.ok(service.authenticate(request));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping("/verify-email")
     public ResponseEntity<String> verifyEmail(@RequestBody VerifyEmailRequest request) {
-        service.verifyEmail(request);
-        return ResponseEntity.ok("Email verified successfully");
+        try {
+            service.verifyEmail(request);
+            return ResponseEntity.ok("Email verified successfully");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping("/resend-verification")
     public ResponseEntity<String> resendVerification(@RequestBody ResendVerificationRequest request) {
-        service.resendVerificationEmail(request);
-        return ResponseEntity.ok("Verification email sent");
+        try {
+            service.resendVerificationEmail(request);
+            return ResponseEntity.ok("Verification email sent");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        service.sendPasswordResetEmail(request);
-        return ResponseEntity.ok("Password reset email sent");
+        try {
+            service.sendPasswordResetEmail(request);
+            return ResponseEntity.ok("Password reset email sent");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
-        service.resetPassword(request);
-        return ResponseEntity.ok("Password reset successfully");
+        try {
+            service.resetPassword(request);
+            return ResponseEntity.ok("Password reset successfully");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @GetMapping("/me")

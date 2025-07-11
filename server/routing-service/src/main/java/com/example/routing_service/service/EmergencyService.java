@@ -36,10 +36,10 @@ public class EmergencyService {
         
         try {
             // Get user's emergency contacts
-            UserManagementClient.EmergencyContactsResponse contactsResponse = 
-                userManagementClient.getEmergencyContacts(userId, "Bearer " + authToken);
+            List<UserManagementClient.EmergencyContact> emergencyContacts = 
+                userManagementClient.getEmergencyContacts(userId);
             
-            if (contactsResponse.emergencyContacts().isEmpty()) {
+            if (emergencyContacts.isEmpty()) {
                 log.warn("No emergency contacts found for user: {}", userId);
                 return EmergencyNotificationResponse.builder()
                     .id("no-contacts")
@@ -59,7 +59,7 @@ public class EmergencyService {
                 .audioSnippet(audioSnippet)
                 .emergencyType("MANUAL")
                 .reason(reason)
-                .emergencyContactIds(contactsResponse.emergencyContacts().stream()
+                .emergencyContactIds(emergencyContacts.stream()
                     .map(UserManagementClient.EmergencyContact::id)
                     .toList())
                 .build();
@@ -72,10 +72,13 @@ public class EmergencyService {
                     request.getLatitude(),
                     request.getLongitude(),
                     request.getAudioSnippet(),
+                    request.getEmergencyType(),
+                    request.getReason(),
+                    request.getLocation(),
                     request.getEmergencyContactIds()
                 );
             // Send emergency notification via message service
-            MessageServiceClient.EmergencyNotificationResponse clientResponse = messageServiceClient.sendEmergencyNotification(clientRequest, "Bearer " + authToken);
+            MessageServiceClient.EmergencyNotificationResponse clientResponse = messageServiceClient.sendEmergencyNotification(clientRequest);
             EmergencyNotificationResponse response = EmergencyNotificationResponse.builder()
                 .id(clientResponse.id())
                 .status(clientResponse.status())
@@ -140,8 +143,8 @@ public class EmergencyService {
         // Simple distance check - if emergency is within 1km of any route segment
         for (Route.RouteSegment segment : route.getSegments()) {
             if (segment.getCoordinates() != null) {
-                for (Double[] coordinate : segment.getCoordinates()) {
-                    double distance = calculateDistance(latitude, longitude, coordinate[1], coordinate[0]);
+                for (Route.Location coordinate : segment.getCoordinates()) {
+                    double distance = calculateDistance(latitude, longitude, coordinate.getLatitude(), coordinate.getLongitude());
                     if (distance <= 1000) { // 1km
                         return true;
                     }

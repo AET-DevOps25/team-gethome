@@ -22,11 +22,11 @@ WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
 
 # Expose the port the app runs on
-EXPOSE 8083
+EXPOSE 8080
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8083/actuator/health || exit 1
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 # Command to run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

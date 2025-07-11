@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -24,4 +25,5 @@ public class UserCreationRequest {
     private PreferredContactMethod preferredContactMethod;
     private String phoneNr;
     private String profilePictureUrl;
+    private List<EmergencyContactDTO> emergencyContacts;
 } 
