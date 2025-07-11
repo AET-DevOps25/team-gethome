@@ -27,13 +27,12 @@ public class MessageController {
     public ResponseEntity<String> sendEmail(
             @RequestParam String toEmail,
             @RequestParam String subject,
-            @RequestParam String templateName,
-            @RequestBody Map<String, Object> variables,
+            @RequestParam String htmlContent,
             Authentication authentication) {
         String userId = authentication.getName();
         log.info("Email send request from user: {} to: {}", userId, toEmail);
         
-        String deliveryId = emailService.sendCustomEmail(toEmail, subject, templateName, variables);
+        String deliveryId = emailService.sendCustomEmail(toEmail, subject, htmlContent);
         return ResponseEntity.ok(deliveryId);
     }
 

@@ -18,6 +18,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 
 @ExtendWith(MockitoExtension.class)
 class DangerZoneServiceTest {
@@ -53,10 +54,7 @@ class DangerZoneServiceTest {
             .reportedAt(LocalDateTime.now())
             .expiresAt(LocalDateTime.now().plusDays(30))
             .tags(Arrays.asList("alley", "poor_lighting"))
-            .location(DangerZone.Location.builder()
-                .type("Point")
-                .coordinates(new double[]{-74.0060, 40.7128})
-                .build())
+            .location(new GeoJsonPoint(-74.0060, 40.7128))
             .reportCount(1)
             .reportedByUsers(Arrays.asList("test-user"))
             .build();
@@ -90,7 +88,7 @@ class DangerZoneServiceTest {
         double radius = 1000;
         List<DangerZone> expectedZones = Arrays.asList(mockDangerZone);
 
-        when(dangerZoneRepository.findNearbyActiveDangerZones(longitude, latitude, radius, any()))
+        when(dangerZoneRepository.findNearbyActiveDangerZones(eq(longitude), eq(latitude), eq(radius), any()))
             .thenReturn(expectedZones);
 
         // When

@@ -29,7 +29,8 @@ import {
     ListItem,
     ListItemText,
     ListItemIcon,
-    Divider
+    Divider,
+    Tooltip
 } from '@mui/material';
 import {
     LocationOn,
@@ -40,6 +41,37 @@ import {
     Info,
     Security
 } from '@mui/icons-material';
+import ManMarkerIcon from '../../components/ManMarkerIcon';
+import { useMapEvent } from 'react-leaflet';
+
+// Add global styles for better map markers
+const globalStyles = `
+  .man-marker {
+    background: transparent !important;
+    border: none !important;
+  }
+  
+  .leaflet-marker-icon.man-marker {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  
+  .leaflet-div-icon {
+    background: transparent !important;
+    border: none !important;
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleTag = document.createElement('style');
+  styleTag.textContent = globalStyles;
+  if (!document.head.querySelector('style[data-map-styles]')) {
+    styleTag.setAttribute('data-map-styles', 'true');
+    document.head.appendChild(styleTag);
+  }
+}
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
@@ -71,6 +103,14 @@ const MapPage: React.FC = () => {
   const [showEmergencyDialog, setShowEmergencyDialog] = useState(false);
   const [emergencyTriggered, setEmergencyTriggered] = useState(false);
   const [safetyTips, setSafetyTips] = useState<string[]>([]);
+  const [addDangerMode, setAddDangerMode] = useState(false);
+  const [newDangerLocation, setNewDangerLocation] = useState<[number, number] | null>(null);
+  const [dangerDialogOpen, setDangerDialogOpen] = useState(false);
+  const [dangerForm, setDangerForm] = useState({ name: '', description: '', dangerLevel: 'MEDIUM', tags: '' });
+  const [dangerSubmitting, setDangerSubmitting] = useState(false);
+  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+  const [isLocationActive, setIsLocationActive] = useState(false);
+  const [lastLocationUpdate, setLastLocationUpdate] = useState<Date | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -78,49 +118,121 @@ const MapPage: React.FC = () => {
       setError('Geolocation is not supported by your browser.');
       setPosition(fallbackLocation);
       setLoading(false);
+      setIsLocationActive(false);
       return;
     }
 
     setError(null);
     setLoading(true);
+    setIsLocationActive(true);
+
+    // Enhanced geolocation options for better tracking
+    const geoOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000, // 10 second timeout for faster response
+      maximumAge: 60000, // Cache for 1 minute to improve performance
+    };
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        setPosition([pos.coords.latitude, pos.coords.longitude]);
-        setError(null);
-        setLoading(false);
+        console.log('Location update received:', {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          timestamp: new Date(pos.timestamp)
+        });
+
+        const newPosition: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         
-        // Load nearby danger zones when position is available
-        if (pos.coords.latitude && pos.coords.longitude) {
+        // Only update if accuracy is reasonable (within 100m) or it's been more than 2 minutes
+        const now = new Date();
+        const shouldUpdate = !lastLocationUpdate || 
+                           (now.getTime() - lastLocationUpdate.getTime()) > 120000 || // 2 minutes
+                           pos.coords.accuracy < 100; // Good accuracy
+
+        // Always clear loading state when we get any position response
+        setLoading(false);
+        setIsLocationActive(true);
+        
+        if (shouldUpdate) {
+          setPosition(newPosition);
+          setLocationAccuracy(pos.coords.accuracy);
+          setLastLocationUpdate(now);
+          setError(null);
+          
+          // Load nearby danger zones when position is available
           loadNearbyDangerZones(pos.coords.latitude, pos.coords.longitude);
           generateSafetyTips(pos.coords.latitude, pos.coords.longitude);
+          
+          console.log('Position updated with accuracy:', pos.coords.accuracy, 'meters');
+        } else {
+          // Still update accuracy even if we don't update position
+          setLocationAccuracy(pos.coords.accuracy);
+          console.log('Position update skipped due to poor accuracy:', pos.coords.accuracy, 'meters');
         }
       },
       (err) => {
-        setPosition(fallbackLocation);
-        if(search === ""){
-          if (err.code === 1) setError('Location permission denied.');
-          else if (err.code === 2) setError('Location unavailable. Try again later.');
-          else if (err.code === 3) setError('');
+        console.error('Geolocation error:', err);
+        setIsLocationActive(false);
+        
+        // Only set fallback position if we don't have any position yet
+        if (!position) {
+          setPosition(fallbackLocation);
         }
-        else setError('Unable to retrieve your location.');
+        
+        if(search === ""){
+          if (err.code === 1) {
+            setError('Location permission denied. Enable location access for accurate tracking.');
+          } else if (err.code === 2) {
+            setError('Location unavailable. Check GPS and try again.');
+          } else if (err.code === 3) {
+            setError('Location request timed out. Using approximate location...');
+            // Set fallback position and continue
+            if (!position) {
+              setPosition(fallbackLocation);
+            }
+          }
+        } else {
+          setError('Unable to retrieve your location.');
+        }
         setLoading(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
+      geoOptions
     );
+
+    // Set up periodic location refresh every 5 minutes (only if we have a position)
+    const refreshInterval = setInterval(() => {
+      if (position) {
+        console.log('Periodic location refresh triggered');
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const newPosition: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+            setPosition(newPosition);
+            setLocationAccuracy(pos.coords.accuracy);
+            setLastLocationUpdate(new Date());
+            setIsLocationActive(true);
+            console.log('Periodic location update successful');
+          },
+          (err) => {
+            console.warn('Periodic location refresh failed:', err);
+          },
+          { ...geoOptions, timeout: 5000 } // Shorter timeout for periodic updates
+        );
+      }
+    }, 300000); // 5 minutes
 
     return () => {
       navigator.geolocation.clearWatch(watchId);
+      clearInterval(refreshInterval);
     };
-  }, []);
+  }, []); // Remove lastLocationUpdate from dependencies to prevent infinite loop
 
   const loadNearbyDangerZones = async (lat: number, lng: number) => {
     try {
-      const zones = await routingService.getNearbyDangerZones(lat, lng, 1000);
+      const radius = 20000; // 20km for robust testing
+      console.log('Requesting danger zones with:', { lat, lng, radius });
+      const zones = await routingService.getNearbyDangerZones(lat, lng, radius);
+      console.log('Danger zones received from backend:', zones);
       setDangerZones(zones);
     } catch (error) {
       console.error('Failed to load danger zones:', error);
@@ -166,6 +278,7 @@ const MapPage: React.FC = () => {
 
     setRouteLoading(true);
     try {
+      console.log('Planning route from:', position, 'to:', searchResult);
       const routeData = await routingService.planRoute(
         position[0],
         position[1],
@@ -173,7 +286,9 @@ const MapPage: React.FC = () => {
         searchResult[1],
         true // Avoid danger zones
       );
+      console.log('Route planning response received:', routeData);
       setRoute(routeData);
+      console.log('Route state set:', routeData);
     } catch (error: any) {
       console.error('Failed to plan route:', error);
       alert('Failed to plan route: ' + (error?.message || 'Unknown error'));
@@ -205,10 +320,24 @@ const MapPage: React.FC = () => {
   };
 
   const getRouteCoordinates = (routeData: any): [number, number][] => {
-    if (!routeData?.segments) return [];
-    return routeData.segments.flatMap((segment: any) => 
-      segment.coordinates?.map((coord: any) => [coord.latitude, coord.longitude]) || []
-    );
+    console.log('Route data received:', routeData);
+    if (!routeData?.segments) {
+      console.log('No segments found in route data');
+      return [];
+    }
+    console.log('Number of segments:', routeData.segments.length);
+    
+    const coordinates = routeData.segments.flatMap((segment: any) => {
+      console.log('Segment:', segment);
+      console.log('Segment coordinates:', segment.coordinates);
+      return segment.coordinates?.map((coord: any) => {
+        console.log('Coordinate:', coord);
+        return [coord.latitude, coord.longitude];
+      }) || [];
+    });
+    
+    console.log('Final coordinates array:', coordinates);
+    return coordinates;
   };
 
   const getSafetyScore = () => {
@@ -218,6 +347,69 @@ const MapPage: React.FC = () => {
   };
 
   const safetyScore = getSafetyScore();
+
+  function DangerZoneMapClickHandler() {
+    useMapEvent('click', (e) => {
+      if (addDangerMode) {
+        setNewDangerLocation([e.latlng.lat, e.latlng.lng]);
+        setDangerDialogOpen(true);
+      }
+    });
+    return null;
+  }
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setLoading(true);
+    setIsLocationActive(true);
+
+    // Force a fresh location update
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        console.log('Manual location update successful:', {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        });
+
+        const newPosition: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setPosition(newPosition);
+        setLocationAccuracy(pos.coords.accuracy);
+        setLastLocationUpdate(new Date());
+        setError(null);
+        setLoading(false);
+        setIsLocationActive(true);
+        
+        // Load nearby danger zones for the new position
+        loadNearbyDangerZones(pos.coords.latitude, pos.coords.longitude);
+        generateSafetyTips(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        console.error('Manual location update failed:', err);
+        setLoading(false);
+        setIsLocationActive(false);
+        
+        if (err.code === 1) {
+          alert('Location permission denied. Please enable location access in your browser settings.');
+        } else if (err.code === 2) {
+          alert('Location unavailable. Please check your GPS and network connection.');
+        } else if (err.code === 3) {
+          alert('Location request timed out. Please try again or move to an area with better GPS signal.');
+        } else {
+          alert('Unable to retrieve your location. Please check your device settings.');
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0, // Force fresh location for manual requests
+      }
+    );
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -307,6 +499,66 @@ const MapPage: React.FC = () => {
         </Box>
       )}
 
+      {/* Action Buttons */}
+      <Box sx={{ px: 2, py: 1 }}>
+        {/* Location Status Indicator */}
+        {position && (
+          <Box mb={2}>
+            <Alert 
+              severity={isLocationActive ? "success" : "warning"} 
+              variant="outlined"
+              sx={{ py: 0.5 }}
+            >
+              <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
+                <Box>
+                  <Typography variant="body2" fontWeight="bold">
+                    Location: {isLocationActive ? 'Active Tracking' : 'Inactive'}
+                  </Typography>
+                  {locationAccuracy && (
+                    <Typography variant="caption">
+                      Accuracy: ±{Math.round(locationAccuracy)}m
+                    </Typography>
+                  )}
+                </Box>
+                {lastLocationUpdate && (
+                  <Typography variant="caption" color="text.secondary">
+                    Updated: {lastLocationUpdate.toLocaleTimeString()}
+                  </Typography>
+                )}
+              </Box>
+            </Alert>
+          </Box>
+        )}
+
+        <Box display="flex" gap={1} mb={2}>
+          <Button
+            variant={addDangerMode ? 'contained' : 'outlined'}
+            color="error"
+            onClick={() => setAddDangerMode((v) => !v)}
+            sx={{ flex: 1 }}
+          >
+            {addDangerMode ? 'Cancel Danger Zone' : 'Mark Danger Zone'}
+          </Button>
+          
+          <Tooltip title={
+            loading ? "Getting your location..." : 
+            isLocationActive ? "Refresh your current location" : 
+            "Get your current location"
+          }>
+            <Button
+              variant="outlined"
+              color={isLocationActive ? "success" : "primary"}
+              onClick={getCurrentLocation}
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={16} /> : <LocationOn />}
+              sx={{ minWidth: '120px' }}
+            >
+              {loading ? 'Locating...' : isLocationActive ? 'Refresh' : 'My Location'}
+            </Button>
+          </Tooltip>
+        </Box>
+      </Box>
+
       {/* Map Container */}
       <Box sx={{ flex: 1, px: 2, py: 1 }}>
         {error && (
@@ -326,14 +578,45 @@ const MapPage: React.FC = () => {
               zoom={15}
               style={{ height: '100%', width: '100%' }}
             >
+              <DangerZoneMapClickHandler />
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution="&copy; OpenStreetMap contributors"
               />
               {position && (
-                <Marker position={position}>
+                <Marker
+                  position={position}
+                  icon={L.divIcon({
+                    className: 'man-marker',
+                    html: `<div style="transform: translate(-26px, -42px);">${require('react-dom/server').renderToStaticMarkup(
+                      <ManMarkerIcon 
+                        size={32} 
+                        isActive={isLocationActive} 
+                        accuracy={locationAccuracy || undefined} 
+                      />
+                    )}</div>`,
+                    iconSize: [52, 52], // Increased size to accommodate accuracy circle
+                    iconAnchor: [26, 42]
+                  })}
+                >
                   <Popup>
-                    {error ? 'Using fallback location' : 'You are here'}
+                    <div>
+                      <strong>Your Location</strong><br/>
+                      {locationAccuracy && (
+                        <>
+                          Accuracy: ±{Math.round(locationAccuracy)}m<br/>
+                        </>
+                      )}
+                      {lastLocationUpdate && (
+                        <>
+                          Updated: {lastLocationUpdate.toLocaleTimeString()}<br/>
+                        </>
+                      )}
+                      Status: {isLocationActive ? 
+                        <span style={{ color: '#4CAF50' }}>🟢 Active</span> : 
+                        <span style={{ color: '#F44336' }}>🔴 Inactive</span>
+                      }
+                    </div>
                   </Popup>
                 </Marker>
               )}
@@ -345,34 +628,111 @@ const MapPage: React.FC = () => {
                 </Marker>
               )}
               {route && (
-                <Polyline
-                  positions={getRouteCoordinates(route)}
-                  color="blue"
-                  weight={3}
-                  opacity={0.7}
-                />
-              )}
-              {dangerZones.map((zone, index) => (
-                <Marker
-                  key={index}
-                  position={[zone.latitude, zone.longitude]}
-                  icon={L.divIcon({
-                    className: 'danger-zone-marker',
-                    html: `<div style="background-color: red; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
+                <>
+                  {route.segments?.map((segment: any, index: number) => {
+                    const coordinates = segment.coordinates?.map((coord: any) => [coord.latitude, coord.longitude]) || [];
+                    
+                    
+                    return coordinates.length > 0 ? (
+                      <Polyline
+                        key={index}
+                        positions={coordinates}
+                        color="blue"
+                        weight={4}
+                        opacity={0.8}
+                      />
+                    ) : null;
                   })}
+                  
+                  {/* Add start and end markers */}
+                  {route.startLocation && (
+                    <Marker 
+                      position={[route.startLocation.latitude, route.startLocation.longitude]}
+                      icon={L.divIcon({
+                        className: 'start-marker',
+                        html: `<div style="background-color: #4CAF50; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                      })}
+                    >
+                      <Popup>
+                        <div>
+                          <strong>Start Point</strong><br/>
+                          Safe walking route begins here
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )}
+                  
+                  {route.endLocation && (
+                    <Marker 
+                      position={[route.endLocation.latitude, route.endLocation.longitude]}
+                      icon={L.divIcon({
+                        className: 'end-marker',
+                        html: `<div style="background-color: #1976D2; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                      })}
+                    >
+                      <Popup>
+                        <div>
+                          <strong>Destination</strong><br/>
+                          Safe walking route ends here
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )}
+                </>
+              )}
+              {console.log('Rendering danger zones:', dangerZones)}
+              {dangerZones.map((zone, index) => (
+                <Tooltip
+                  key={index}
+                  title={<div>
+                    <strong>{zone.name}</strong><br/>
+                    Level: {zone.dangerLevel}<br/>
+                    {zone.description && (<span>Description: {zone.description}<br/></span>)}
+                    Reported: {zone.reportedAt ? new Date(zone.reportedAt).toLocaleString() : 'N/A'}<br/>
+                    Reports: {zone.reportCount || 1}
+                  </div>}
+                  arrow
+                  placement="top"
                 >
-                  <Popup>
-                    <div>
-                      <strong>Danger Zone</strong><br/>
-                      Level: {zone.dangerLevel}<br/>
-                      Category: {zone.category}<br/>
-                      {zone.description}
-                    </div>
-                  </Popup>
-                </Marker>
+                  <span>
+                    <Marker
+                      position={[zone.location.coordinates[1], zone.location.coordinates[0]]}
+                      icon={L.divIcon({
+                        className: 'danger-zone-marker',
+                        html: `<div style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: transparent;">`
+                          + `<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <polygon points="14,3 27,25 1,25" fill="#FFB300" stroke="#B71C1C" stroke-width="2"/>
+                              <text x="14" y="21" text-anchor="middle" font-size="16" fill="#B71C1C" font-family="Arial" font-weight="bold">!</text>
+                            </svg>`
+                          + `</div>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 28]
+                      })}
+                    >
+                      <Popup>
+                        <div>
+                          <strong>Danger Zone</strong><br/>
+                          Level: {zone.dangerLevel}<br/>
+                          Category: {zone.category}<br/>
+                          {zone.description}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  </span>
+                </Tooltip>
               ))}
+              {addDangerMode && newDangerLocation && (
+                <Marker position={newDangerLocation} icon={L.divIcon({
+                  className: 'danger-zone-marker',
+                  html: `<div style="background-color: red; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white;"></div>`
+                })}>
+                  <Popup>New Danger Zone</Popup>
+                </Marker>
+              )}
               <RecenterMap position={searchResult || position!} />
             </MapContainer>
           </Card>
@@ -474,6 +834,47 @@ const MapPage: React.FC = () => {
           >
             Trigger Emergency
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Danger Zone Report Dialog */}
+      <Dialog open={dangerDialogOpen} onClose={() => setDangerDialogOpen(false)}>
+        <DialogTitle>Report Danger Zone</DialogTitle>
+        <DialogContent>
+          <TextField label="Name" fullWidth margin="normal" value={dangerForm.name} onChange={e => setDangerForm(f => ({ ...f, name: e.target.value }))} />
+          <TextField label="Description" fullWidth margin="normal" value={dangerForm.description} onChange={e => setDangerForm(f => ({ ...f, description: e.target.value }))} />
+          <TextField label="Danger Level" select fullWidth margin="normal" value={dangerForm.dangerLevel} onChange={e => setDangerForm(f => ({ ...f, dangerLevel: e.target.value }))} SelectProps={{ native: true }}>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </TextField>
+          <TextField label="Tags (comma separated)" fullWidth margin="normal" value={dangerForm.tags} onChange={e => setDangerForm(f => ({ ...f, tags: e.target.value }))} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDangerDialogOpen(false)}>Cancel</Button>
+          <Button disabled={dangerSubmitting} onClick={async () => {
+            if (!newDangerLocation) return;
+            setDangerSubmitting(true);
+            try {
+              await routingService.reportDangerZone({
+                name: dangerForm.name,
+                description: dangerForm.description,
+                dangerLevel: dangerForm.dangerLevel,
+                location: { latitude: newDangerLocation[0], longitude: newDangerLocation[1] },
+                tags: dangerForm.tags.split(',').map(t => t.trim()).filter(Boolean)
+              });
+              setDangerDialogOpen(false);
+              setAddDangerMode(false);
+              setNewDangerLocation(null);
+              setDangerForm({ name: '', description: '', dangerLevel: 'MEDIUM', tags: '' });
+              await loadNearbyDangerZones(position?.[0] || 0, position?.[1] || 0);
+            } catch (e) {
+              alert('Failed to report danger zone');
+            } finally {
+              setDangerSubmitting(false);
+            }
+          }} color="error" variant="contained">Submit</Button>
         </DialogActions>
       </Dialog>
 

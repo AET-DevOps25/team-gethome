@@ -1,194 +1,223 @@
-# Global configuration
+# GetHome Application Helm Values
+# Advanced monitoring configuration for business intelligence and safety analytics
+
 global:
   namespace: devops25-k8s-gethome
   environment: production
   imageRegistry: "ghcr.io"
-  imagePullSecrets: []
+  imagePullSecrets:
+    - name: ghcr-secret
+  imageTag: "latest"
 
-# Replica count for all services
-replicaCount: 1
-
-# MongoDB configuration
-mongo:
-  enabled: true
-  image: mongo:6
-  imagePullPolicy: IfNotPresent
-  username: root
-  password: example
-  database: gethome
-  storage:
-    size: 10Gi
-    storageClass: ""
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 2Gi
-    requests:
-      cpu: 500m
-      memory: 1Gi
-  service:
-    type: ClusterIP
-    port: 27017
-
-# Monitoring configuration
+# Advanced Monitoring Configuration
 monitoring:
   enabled: true
   
-  # Prometheus configuration
+  # Custom GetHome Business Intelligence Exporter
+  customExporter:
+    enabled: true
+    image: "python:3.11-slim"
+    port: 8090
+    scrapeInterval: "30s"
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "200m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    env:
+      MONGODB_URI: "mongodb://mongo:27017/gethome"
+      AUTH_SERVICE_URL: "http://auth-service:8081"
+      ROUTING_SERVICE_URL: "http://routing-service:8083"
+      MESSAGE_SERVICE_URL: "http://message-service:8082"
+      USER_SERVICE_URL: "http://usermanagement-service:8084"
+      SCRAPE_INTERVAL: "30"
+      METRICS_PORT: "8090"
+  
+  # Deployment Impact Tracker
+  deploymentTracker:
+    enabled: true
+    image: "python:3.11-slim"
+    port: 8091
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    config:
+      preDeploymentBaseline: "15m"
+      postDeploymentMonitoring: "60m"
+      comparisonWindow: "24h"
+  
+  # Prometheus Configuration
   prometheus:
     enabled: true
-    image: prom/prometheus:v2.45.0
-    imagePullPolicy: IfNotPresent
     retention: "15d"
-    storage:
-      size: 50Gi
-      storageClass: ""
+    storage: "50Gi"
+    scrapeInterval: "15s"
+    evaluationInterval: "15s"
     resources:
-      limits:
-        cpu: 1000m
-        memory: 2Gi
       requests:
-        cpu: 500m
-        memory: 1Gi
-
-  # Grafana configuration
+        memory: "2Gi"
+        cpu: "500m"
+      limits:
+        memory: "4Gi"
+        cpu: "1000m"
+    
+    # Advanced rule groups
+    rules:
+      safetyRules: true
+      businessRules: true
+      emergencyRules: true
+      userBehaviorRules: true
+      deploymentRules: true
+    
+    # External data sources
+    externalLabels:
+      cluster: "gethome-production"
+      environment: "production"
+      region: "us-east-1"
+  
+  # Grafana Configuration  
   grafana:
     enabled: true
-    image: grafana/grafana:10.0.0
-    imagePullPolicy: IfNotPresent
-    adminUser: admin
-    adminPassword: admin123
-    storage:
-      size: 10Gi
-      storageClass: ""
+    adminPassword: "admin123"
     resources:
-      limits:
-        cpu: 500m
-        memory: 1Gi
       requests:
-        cpu: 250m
-        memory: 512Mi
-
-  # AlertManager configuration
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "300m"
+    
+    # Advanced dashboards
+    dashboards:
+      businessIntelligence: true
+      safetyAnalytics: true
+      userBehavior: true
+      deploymentImpact: true
+      operationalOverview: true
+      executiveSummary: true
+    
+    # Data sources
+    datasources:
+      prometheus: true
+      customExporter: true
+      deploymentTracker: true
+    
+    # Plugins for enhanced visualizations
+    plugins:
+      - grafana-piechart-panel
+      - grafana-worldmap-panel
+      - grafana-clock-panel
+      - grafana-discrete-panel
+    
+    # Notification channels
+    notificationChannels:
+      slack:
+        enabled: true
+        webhook: "${SLACK_WEBHOOK_URL}"
+        defaultChannel: "#monitoring-alerts"
+      email:
+        enabled: true
+        smtpHost: "${SMTP_HOST}"
+        smtpPort: 587
+        fromAddress: "alerts@gethome.com"
+  
+  # AlertManager Configuration
   alertmanager:
     enabled: true
-    image: prom/alertmanager:v0.25.0
-    imagePullPolicy: IfNotPresent
-    storage:
-      size: 5Gi
-      storageClass: ""
     resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
       requests:
-        cpu: 250m
-        memory: 256Mi
-    slack:
-      webhookUrl: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
-      channel: "#gethome-alerts"
-      criticalChannel: "#gethome-critical"
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "100m"
+    
+    # Advanced routing configuration
+    routing:
+      groupBy: ['alertname', 'severity', 'category']
+      groupWait: "10s"
+      groupInterval: "5m"
+      repeatInterval: "12h"
+      
+      # Business-focused routes
+      routes:
+        - match:
+            severity: critical
+            category: safety
+          receiver: safety-critical
+          groupWait: "0s"
+          repeatInterval: "5m"
+        
+        - match:
+            severity: critical
+            category: emergency
+          receiver: emergency-critical
+          groupWait: "0s"
+          repeatInterval: "2m"
+        
+        - match:
+            business_impact: high
+          receiver: business-alerts
+          groupInterval: "15m"
+        
+        - match:
+            category: deployment
+          receiver: deployment-alerts
+          groupInterval: "30m"
+    
+    # Notification receivers
+    receivers:
+      safety-critical:
+        slackConfigs:
+          - apiUrl: "${SLACK_WEBHOOK_URL}"
+            channel: "#safety-critical"
+            title: "🚨 CRITICAL SAFETY ALERT"
+            text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+            color: "danger"
+      
+      emergency-critical:
+        slackConfigs:
+          - apiUrl: "${SLACK_WEBHOOK_URL}"
+            channel: "#emergency-critical"
+            title: "🆘 EMERGENCY SYSTEM ALERT"
+            text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+            color: "danger"
+      
+      business-alerts:
+        slackConfigs:
+          - apiUrl: "${SLACK_WEBHOOK_URL}"
+            channel: "#business-alerts"
+            title: "📊 Business Performance Alert"
+            text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+            color: "warning"
 
-# Ingress configuration
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-  hosts:
-    - host: gethome.local
-      paths:
-        - path: /
-          pathType: Prefix
-          service: react-client
-        - path: /api/auth
-          pathType: Prefix
-          service: auth-service
-        - path: /api/user
-          pathType: Prefix
-          service: usermanagement-service
-        - path: /api/ai
-          pathType: Prefix
-          service: ai-service
-        - path: /api/message
-          pathType: Prefix
-          service: message-service
-        - path: /api/routing
-          pathType: Prefix
-          service: routing-service
-        - path: /monitoring
-          pathType: Prefix
-          service: grafana
-        - path: /prometheus
-          pathType: Prefix
-          service: prometheus
-  tls:
-    - secretName: gethome-tls
-      hosts:
-        - gethome.local
-
-# Services configuration
+# Microservices Configuration with Custom Metrics
 services:
-  # AI Service
-  ai-service:
-    enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/ai-service:latest
-    imagePullPolicy: IfNotPresent
-    port: 8085
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 2Gi
-      requests:
-        cpu: 500m
-        memory: 1Gi
-    env:
-      - name: JWT_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: gethome-secrets
-            key: jwt-secret
-      - name: JWT_ALGORITHM
-        value: "HS256"
-      - name: USER_SERVICE_URL
-        value: "http://usermanagement-service:8082/api/users/{user_id}/profile"
-      - name: OPENAI_API_KEY
-        valueFrom:
-          secretKeyRef:
-            name: gethome-secrets
-            key: openai-api-key
-      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-        value: "health,info,prometheus,metrics"
-      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
-        value: "true"
-    service:
-      type: ClusterIP
-      port: 8085
-      targetPort: 8085
-
-  # Auth Service
   auth-service:
     enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/auth-service:latest
+    image: "ghcr.io/aet-devops25/team-gethome/auth-service:latest"
     imagePullPolicy: IfNotPresent
     port: 8081
     resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
       requests:
-        cpu: 500m
-        memory: 512Mi
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    
+    # Microservice communication environment variables
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: "production"
-      - name: SPRING_DATA_MONGODB_HOST
-        value: "mongo"
-      - name: SPRING_DATA_MONGODB_PORT
-        value: "27017"
-      - name: SPRING_DATA_MONGODB_DATABASE
-        value: "gethome_auth"
+      - name: SPRING_DATA_MONGODB_URI
+        value: "mongodb://mongo:27017/gethome_auth"
       - name: JWT_SECRET
         valueFrom:
           secretKeyRef:
@@ -214,33 +243,31 @@ services:
         value: "health,info,prometheus,metrics"
       - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
         value: "true"
+    
     service:
       type: ClusterIP
       port: 8081
-      targetPort: 8081
-
-  # Message Service
-  message-service:
+      targetPort: 8080
+  
+  routing-service:
     enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/message-service:latest
+    image: "ghcr.io/aet-devops25/team-gethome/routing-service:latest"
     imagePullPolicy: IfNotPresent
     port: 8083
     resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
       requests:
-        cpu: 500m
-        memory: 512Mi
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    
+    # Microservice communication environment variables
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: "production"
-      - name: SPRING_DATA_MONGODB_HOST
-        value: "mongo"
-      - name: SPRING_DATA_MONGODB_PORT
-        value: "27017"
-      - name: SPRING_DATA_MONGODB_DATABASE
-        value: "gethome_messages"
+      - name: SPRING_DATA_MONGODB_URI
+        value: "mongodb://mongo:27017/gethome_routing"
       - name: JWT_SECRET
         valueFrom:
           secretKeyRef:
@@ -251,11 +278,58 @@ services:
       - name: SERVICE_AUTH_URL
         value: "http://auth-service:8081"
       - name: SERVICE_USERMANAGEMENT_URL
-        value: "http://usermanagement-service:8082"
+        value: "http://usermanagement-service:8084"
+      - name: SERVICE_MESSAGE_URL
+        value: "http://message-service:8082"
+      - name: ROUTING_API_URL
+        value: "https://api.openrouteservice.org/v2"
+      - name: ROUTING_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: openroute-api-key
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
+    
+    service:
+      type: ClusterIP
+      port: 8083
+      targetPort: 8080
+  
+  message-service:
+    enabled: true
+    image: "ghcr.io/aet-devops25/team-gethome/message-service:latest"
+    imagePullPolicy: IfNotPresent
+    port: 8082
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    
+    # Microservice communication environment variables
+    env:
+      - name: SPRING_PROFILES_ACTIVE
+        value: "production"
+      - name: SPRING_DATA_MONGODB_URI
+        value: "mongodb://mongo:27017/gethome_messages"
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: jwt-secret
+      - name: JWT_EXPIRATION
+        value: "86400000"
+      - name: SERVICE_AUTH_URL
+        value: "http://auth-service:8081"
+      - name: SERVICE_USERMANAGEMENT_URL
+        value: "http://usermanagement-service:8084"
       - name: SERVICE_ROUTING_URL
-        value: "http://routing-service:8084"
-      - name: SERVICE_AI_URL
-        value: "http://ai-service:8085"
+        value: "http://routing-service:8083"
       - name: SPRING_MAIL_HOST
         value: "smtp.gmail.com"
       - name: SPRING_MAIL_PORT
@@ -289,117 +363,104 @@ services:
         value: "health,info,prometheus,metrics"
       - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
         value: "true"
-    service:
-      type: ClusterIP
-      port: 8083
-      targetPort: 8083
-
-  # Routing Service
-  routing-service:
-    enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/routing-service:latest
-    imagePullPolicy: IfNotPresent
-    port: 8084
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
-    env:
-      - name: SPRING_PROFILES_ACTIVE
-        value: "production"
-      - name: SPRING_DATA_MONGODB_HOST
-        value: "mongo"
-      - name: SPRING_DATA_MONGODB_PORT
-        value: "27017"
-      - name: SPRING_DATA_MONGODB_DATABASE
-        value: "gethome_routing"
-      - name: JWT_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: gethome-secrets
-            key: jwt-secret
-      - name: JWT_EXPIRATION
-        value: "86400000"
-      - name: SERVICE_AUTH_URL
-        value: "http://auth-service:8081"
-      - name: SERVICE_USERMANAGEMENT_URL
-        value: "http://usermanagement-service:8082"
-      - name: SERVICE_MESSAGE_URL
-        value: "http://message-service:8083"
-      - name: SERVICE_AI_URL
-        value: "http://ai-service:8085"
-      - name: ROUTING_API_URL
-        value: "https://api.openrouteservice.org/v2"
-      - name: ROUTING_API_KEY
-        valueFrom:
-          secretKeyRef:
-            name: gethome-secrets
-            key: openrouteservice-api-key
-      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-        value: "health,info,prometheus,metrics"
-      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
-        value: "true"
-    service:
-      type: ClusterIP
-      port: 8084
-      targetPort: 8084
-
-  # User Management Service
-  usermanagement-service:
-    enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/usermanagement-service:latest
-    imagePullPolicy: IfNotPresent
-    port: 8082
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
-    env:
-      - name: SPRING_PROFILES_ACTIVE
-        value: "production"
-      - name: SPRING_DATA_MONGODB_HOST
-        value: "mongo"
-      - name: SPRING_DATA_MONGODB_PORT
-        value: "27017"
-      - name: SPRING_DATA_MONGODB_DATABASE
-        value: "gethome_users"
-      - name: JWT_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: gethome-secrets
-            key: jwt-secret
-      - name: JWT_EXPIRATION
-        value: "86400000"
-      - name: SERVICE_AUTH_URL
-        value: "http://auth-service:8081"
-      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-        value: "health,info,prometheus,metrics"
-      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
-        value: "true"
+    
     service:
       type: ClusterIP
       port: 8082
-      targetPort: 8082
+      targetPort: 8080
+  
+  usermanagement-service:
+    enabled: true
+    image: "ghcr.io/aet-devops25/team-gethome/usermanagement-service:latest"
+    imagePullPolicy: IfNotPresent
+    port: 8084
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    
+    # Microservice communication environment variables
+    env:
+      - name: SPRING_PROFILES_ACTIVE
+        value: "production"
+      - name: SPRING_DATA_MONGODB_URI
+        value: "mongodb://mongo:27017/gethome_users"
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: jwt-secret
+      - name: JWT_EXPIRATION
+        value: "86400000"
+      - name: SERVICE_AUTH_URL
+        value: "http://auth-service:8081"
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
+    
+    service:
+      type: ClusterIP
+      port: 8084
+      targetPort: 8080
 
-  # React Client
+  # AI Service
+  ai-service:
+    enabled: true
+    image: "ghcr.io/aet-devops25/team-gethome/ai-service:latest"
+    imagePullPolicy: IfNotPresent
+    port: 8085
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    
+    # Microservice communication environment variables
+    env:
+      - name: JWT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: jwt-secret
+      - name: JWT_ALGORITHM
+        value: "HS256"
+      - name: USER_SERVICE_URL
+        value: "http://usermanagement-service:8084/api/users/{user_id}/profile"
+      - name: OPENAI_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: gethome-secrets
+            key: openai-api-key
+      - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+        value: "health,info,prometheus,metrics"
+      - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+        value: "true"
+    
+    service:
+      type: ClusterIP
+      port: 8085
+      targetPort: 80
+
+  # React Client (Frontend)
   react-client:
     enabled: true
-    image: ghcr.io/aet-devops25/team-gethome/react-client:latest
+    image: "ghcr.io/aet-devops25/team-gethome/react-client:latest"
     imagePullPolicy: IfNotPresent
     port: 80
     resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
       requests:
-        cpu: 250m
-        memory: 256Mi
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    
     env:
       - name: REACT_APP_API_BASE_URL
         value: "https://gethome.local/api"
@@ -411,32 +472,127 @@ services:
         value: "https://gethome.local/api/routing"
       - name: REACT_APP_CHAT_SERVICE_URL
         value: "https://gethome.local/api/ai"
+    
     service:
       type: ClusterIP
       port: 80
       targetPort: 80
 
-# ConfigMap for shared configuration
-configMap:
+# Database Configuration
+mongo:
   enabled: true
-  data:
-    app.name: "GetHome"
-    app.version: "1.0.0"
-    app.environment: "production"
+  image: "mongo:6"
+  imagePullPolicy: IfNotPresent
+  username: root
+  password: example
+  database: gethome
+  storage:
+    size: 10Gi
+    storageClass: ""
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  service:
+    type: ClusterIP
+    port: 27017
 
-# Secrets configuration
-secrets:
+# Ingress Configuration
+ingress:
   enabled: true
-  data:
-    jwt-secret: "your-super-secret-jwt-key-change-in-production"
-    mongo-password: "example"
-    email-username: "your-email@gmail.com"
-    email-password: "your-email-app-password"
-    twilio-account-sid: "your-twilio-account-sid"
-    twilio-auth-token: "your-twilio-auth-token"
-    twilio-phone-number: "+1234567890"
-    openai-api-key: "your-openai-api-key"
-    openrouteservice-api-key: "your-openrouteservice-api-key"
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  
+  hosts:
+    - host: "gethome.local"
+      paths:
+        - path: "/"
+          pathType: "Prefix"
+          service: "react-client"
+        - path: "/api/auth"
+          pathType: "Prefix"
+          service: "auth-service"
+        - path: "/api/user"
+          pathType: "Prefix"
+          service: "usermanagement-service"
+        - path: "/api/ai"
+          pathType: "Prefix"
+          service: "ai-service"
+        - path: "/api/message"
+          pathType: "Prefix"
+          service: "message-service"
+        - path: "/api/routing"
+          pathType: "Prefix"
+          service: "routing-service"
+        - path: "/monitoring"
+          pathType: "Prefix"
+          service: "grafana"
+        - path: "/prometheus"
+          pathType: "Prefix"
+          service: "prometheus"
+  
+  tls:
+    - secretName: "gethome-tls"
+      hosts:
+        - "gethome.local"
+
+# Security Configuration
+security:
+  networkPolicies:
+    enabled: true
+  
+  podSecurityPolicies:
+    enabled: true
+  
+  serviceAccounts:
+    create: true
+    annotations: {}
+
+# Resource Quotas and Limits
+resources:
+  quotas:
+    enabled: true
+    limits:
+      cpu: "10"
+      memory: "20Gi"
+      persistentvolumeclaims: "10"
+  
+  limitRanges:
+    enabled: true
+    default:
+      cpu: "100m"
+      memory: "128Mi"
+    defaultRequest:
+      cpu: "50m"
+      memory: "64Mi"
+
+# Backup and Disaster Recovery
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: "30d"
+  
+  databases:
+    mongodb:
+      enabled: true
+      method: "mongodump"
+    postgresql:
+      enabled: true
+      method: "pg_dump"
+  
+  storage:
+    type: "s3"
+    bucket: "gethome-backups"
+    region: "us-east-1"
+
+# Default configuration for all services
+replicaCount: 1
 
 # Service Account
 serviceAccount:
@@ -472,3 +628,50 @@ hpa:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
+
+# ConfigMap for shared configuration
+configMap:
+  enabled: true
+  data:
+    app.name: "GetHome"
+    app.version: "1.0.0"
+    app.environment: "production"
+
+# Secrets configuration
+# IMPORTANT: Replace all placeholder values with actual secrets before deployment
+secrets:
+  enabled: true
+  # External secrets support - set to true to use external secret management
+  external:
+    enabled: false
+    secretStore: "vault-backend"
+    refreshInterval: "1h"
+  
+  # Manual secrets configuration
+  data:
+    # JWT configuration - Generate with: openssl rand -base64 32
+    jwt-secret: "CHANGE-ME-generate-secure-jwt-secret-at-least-32-chars"
+    
+    # MongoDB credentials
+    mongo-root-username: "root"
+    mongo-root-password: "example"
+    
+    # Email configuration (Gmail App Password recommended)
+    email-host: "smtp.gmail.com"
+    email-port: "587"
+    email-username: "CHANGE-ME-your-email@gmail.com"
+    email-password: "CHANGE-ME-gmail-app-password"
+
+    # Twilio SMS configuration
+    twilio-account-sid: "CHANGE-ME-twilio-account-sid"
+    twilio-auth-token: "CHANGE-ME-twilio-auth-token"
+    twilio-phone-number: "CHANGE-ME-+1234567890"
+    
+    # OpenAI API configuration
+    openai-api-key: "CHANGE-ME-sk-openai-api-key"
+    
+    # OpenRoute Service configuration
+    openroute-api-key: "CHANGE-ME-openroute-service-api-key"
+    
+    # Slack webhook for advanced monitoring
+    slack-webhook-url: "CHANGE-ME-slack-webhook-url"

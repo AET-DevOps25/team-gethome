@@ -1,0 +1,583 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-tracker-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: deployment-tracker
+    version: {{ .Chart.AppVersion }}
+data:
+  config.yaml: |
+    # GetHome Deployment Impact Tracking Configuration
+    # This system monitors deployment effects on business and technical metrics
+    
+    tracking:
+      enabled: true
+      pre_deployment_baseline_duration: "15m"
+      post_deployment_monitoring_duration: "60m"
+      comparison_window: "24h"
+      
+    metrics:
+      business_metrics:
+        - name: "safety_score_average"
+          query: "gethome_safety_score_average"
+          threshold_degradation: 0.05  # 5% degradation threshold
+          critical_threshold: 0.1      # 10% critical threshold
+          
+        - name: "emergency_response_efficiency"
+          query: "gethome_emergency_response_efficiency_score"
+          threshold_degradation: 0.1
+          critical_threshold: 0.2
+          
+        - name: "user_engagement_score"
+          query: "gethome_user_engagement_score"
+          threshold_degradation: 0.05
+          critical_threshold: 0.15
+          
+        - name: "route_optimization_effectiveness"
+          query: "gethome_route_optimization_effectiveness_percentage"
+          threshold_degradation: 5     # 5% points
+          critical_threshold: 10       # 10% points
+      
+      technical_metrics:
+        - name: "api_success_rate"
+          query: "gethome_api_success_rate_percentage"
+          threshold_degradation: 2     # 2% points
+          critical_threshold: 5        # 5% points
+          
+        - name: "system_availability"
+          query: "gethome_system_availability_score"
+          threshold_degradation: 0.01  # 1% degradation
+          critical_threshold: 0.05     # 5% degradation
+          
+        - name: "emergency_response_time"
+          query: "gethome_emergency_response_duration_seconds"
+          threshold_degradation: 30    # 30 seconds increase
+          critical_threshold: 60       # 60 seconds increase
+          
+        - name: "route_calculation_time"
+          query: "gethome_route_calculation_duration_seconds"
+          threshold_degradation: 5     # 5 seconds increase
+          critical_threshold: 10       # 10 seconds increase
+    
+    alerts:
+      slack_webhook: "${SLACK_WEBHOOK_URL}"
+      deployment_channel: "#deployment-alerts"
+      critical_channel: "#critical-alerts"
+      
+    notifications:
+      pre_deployment:
+        enabled: true
+        message: "🚀 Deployment starting for GetHome {{.Service}} v{{.Version}} - Establishing baseline metrics"
+        
+      post_deployment:
+        enabled: true
+        success_message: "✅ Deployment successful for GetHome {{.Service}} v{{.Version}} - All metrics within acceptable ranges"
+        warning_message: "⚠️ Deployment completed with warnings for GetHome {{.Service}} v{{.Version}} - Some metrics degraded"
+        critical_message: "🚨 Critical deployment impact detected for GetHome {{.Service}} v{{.Version}} - Immediate investigation required"
+        
+      rollback_recommendation:
+        enabled: true
+        auto_rollback_threshold: 0.2  # 20% critical metric degradation triggers rollback recommendation
+        message: "🔄 Rollback recommended for GetHome {{.Service}} v{{.Version}} due to significant metric degradation"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-tracker
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: deployment-tracker
+    version: {{ .Chart.AppVersion }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deployment-tracker
+  template:
+    metadata:
+      labels:
+        app: deployment-tracker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8091"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: deployment-tracker
+      containers:
+      - name: deployment-tracker
+        image: python:3.11-slim
+        ports:
+        - containerPort: 8091
+          name: metrics
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://prometheus:9090"
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: gethome-secrets
+              key: slack-webhook-url
+        - name: GRAFANA_URL
+          value: "http://grafana:3000"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        - name: tracker-script
+          mountPath: /app/tracker.py
+          subPath: tracker.py
+        command: ["python", "/app/tracker.py"]
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      volumes:
+      - name: config
+        configMap:
+          name: deployment-tracker-config
+      - name: tracker-script
+        configMap:
+          name: deployment-tracker-script
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-tracker-script
+  namespace: {{ .Values.namespace }}
+data:
+  tracker.py: |
+    #!/usr/bin/env python3
+    """
+    GetHome Deployment Impact Tracker
+    ================================
+    
+    Monitors deployment impact on business and technical metrics.
+    Provides automated alerting and rollback recommendations.
+    """
+    
+    import os
+    import time
+    import json
+    import requests
+    import yaml
+    import logging
+    from datetime import datetime, timedelta
+    from typing import Dict, List, Optional
+    from dataclasses import dataclass
+    from prometheus_client import start_http_server, Gauge, Counter, Histogram
+    
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    @dataclass
+    class MetricBaseline:
+        name: str
+        value: float
+        timestamp: datetime
+        
+    @dataclass
+    class DeploymentEvent:
+        service: str
+        version: str
+        timestamp: datetime
+        baseline_metrics: List[MetricBaseline]
+        
+    class DeploymentTracker:
+        def __init__(self):
+            self.prometheus_url = os.getenv('PROMETHEUS_URL', 'http://prometheus:9090')
+            self.slack_webhook = os.getenv('SLACK_WEBHOOK_URL')
+            self.grafana_url = os.getenv('GRAFANA_URL', 'http://grafana:3000')
+            
+            # Load configuration
+            with open('/app/config/config.yaml', 'r') as f:
+                self.config = yaml.safe_load(f)
+            
+            # Initialize metrics
+            self.deployment_impact_score = Gauge(
+                'gethome_deployment_impact_score',
+                'Deployment impact score (0=no impact, 1=critical impact)',
+                ['service', 'version', 'metric_category']
+            )
+            
+            self.deployment_events = Counter(
+                'gethome_deployment_events_total',
+                'Total number of deployment events tracked',
+                ['service', 'status']
+            )
+            
+            self.metric_degradation = Histogram(
+                'gethome_deployment_metric_degradation',
+                'Metric degradation percentage after deployment',
+                ['service', 'metric_name'],
+                buckets=[0.01, 0.05, 0.1, 0.2, 0.5, 1.0]
+            )
+            
+            self.rollback_recommendations = Counter(
+                'gethome_deployment_rollback_recommendations_total',
+                'Number of automatic rollback recommendations',
+                ['service', 'reason']
+            )
+            
+        def query_prometheus(self, query: str, time_range: str = '5m') -> float:
+            """Query Prometheus for metric values"""
+            try:
+                url = f"{self.prometheus_url}/api/v1/query"
+                params = {
+                    'query': f"avg_over_time({query}[{time_range}])"
+                }
+                
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                
+                data = response.json()
+                if data['status'] == 'success' and data['data']['result']:
+                    return float(data['data']['result'][0]['value'][1])
+                    
+                return 0.0
+                
+            except Exception as e:
+                logger.error(f"Failed to query Prometheus: {e}")
+                return 0.0
+        
+        def establish_baseline(self) -> List[MetricBaseline]:
+            """Establish baseline metrics before deployment"""
+            baseline_duration = self.config['tracking']['pre_deployment_baseline_duration']
+            baselines = []
+            
+            all_metrics = (
+                self.config['metrics']['business_metrics'] +
+                self.config['metrics']['technical_metrics']
+            )
+            
+            for metric in all_metrics:
+                value = self.query_prometheus(metric['query'], baseline_duration)
+                baseline = MetricBaseline(
+                    name=metric['name'],
+                    value=value,
+                    timestamp=datetime.now()
+                )
+                baselines.append(baseline)
+                logger.info(f"Baseline established: {metric['name']} = {value}")
+            
+            return baselines
+        
+        def monitor_post_deployment(self, baseline_metrics: List[MetricBaseline], 
+                                  service: str, version: str) -> Dict:
+            """Monitor metrics after deployment and detect impact"""
+            monitoring_duration = self.config['tracking']['post_deployment_monitoring_duration']
+            
+            results = {
+                'service': service,
+                'version': version,
+                'overall_impact': 0.0,
+                'metric_impacts': [],
+                'degraded_metrics': [],
+                'critical_metrics': [],
+                'recommendation': 'continue'
+            }
+            
+            all_metrics = (
+                self.config['metrics']['business_metrics'] +
+                self.config['metrics']['technical_metrics']
+            )
+            
+            # Wait for deployment to stabilize
+            time.sleep(300)  # 5 minutes
+            
+            for metric_config in all_metrics:
+                baseline = next(
+                    (b for b in baseline_metrics if b.name == metric_config['name']), 
+                    None
+                )
+                
+                if not baseline:
+                    continue
+                    
+                current_value = self.query_prometheus(metric_config['query'], '5m')
+                
+                # Calculate degradation
+                if baseline.value > 0:
+                    degradation = abs(current_value - baseline.value) / baseline.value
+                else:
+                    degradation = 0.0
+                    
+                # Determine impact level
+                impact_level = 'none'
+                if degradation >= metric_config['critical_threshold']:
+                    impact_level = 'critical'
+                    results['critical_metrics'].append(metric_config['name'])
+                elif degradation >= metric_config['threshold_degradation']:
+                    impact_level = 'warning'
+                    results['degraded_metrics'].append(metric_config['name'])
+                
+                metric_impact = {
+                    'name': metric_config['name'],
+                    'baseline': baseline.value,
+                    'current': current_value,
+                    'degradation_percent': degradation * 100,
+                    'impact_level': impact_level
+                }
+                
+                results['metric_impacts'].append(metric_impact)
+                
+                # Record metrics
+                self.metric_degradation.labels(
+                    service=service,
+                    metric_name=metric_config['name']
+                ).observe(degradation)
+                
+                self.deployment_impact_score.labels(
+                    service=service,
+                    version=version,
+                    metric_category='business' if metric_config in self.config['metrics']['business_metrics'] else 'technical'
+                ).set(degradation)
+                
+                logger.info(f"Metric {metric_config['name']}: {baseline.value} → {current_value} "
+                           f"(degradation: {degradation*100:.2f}%, impact: {impact_level})")
+            
+            # Calculate overall impact
+            if results['critical_metrics']:
+                results['overall_impact'] = 1.0
+                results['recommendation'] = 'rollback'
+                self.rollback_recommendations.labels(
+                    service=service,
+                    reason='critical_metrics'
+                ).inc()
+            elif len(results['degraded_metrics']) > 3:
+                results['overall_impact'] = 0.7
+                results['recommendation'] = 'investigate'
+            elif results['degraded_metrics']:
+                results['overall_impact'] = 0.3
+                results['recommendation'] = 'monitor'
+            
+            return results
+        
+        def send_slack_notification(self, message: str, channel: str = None):
+            """Send notification to Slack"""
+            if not self.slack_webhook:
+                logger.warning("Slack webhook not configured")
+                return
+                
+            try:
+                payload = {
+                    'text': message,
+                    'username': 'GetHome Deployment Tracker',
+                    'icon_emoji': ':chart_with_upwards_trend:'
+                }
+                
+                if channel:
+                    payload['channel'] = channel
+                
+                response = requests.post(self.slack_webhook, json=payload, timeout=10)
+                response.raise_for_status()
+                
+                logger.info(f"Slack notification sent: {message[:100]}...")
+                
+            except Exception as e:
+                logger.error(f"Failed to send Slack notification: {e}")
+        
+        def generate_deployment_report(self, results: Dict) -> str:
+            """Generate comprehensive deployment impact report"""
+            service = results['service']
+            version = results['version']
+            
+            report = f"""
+    🚀 **GetHome Deployment Impact Report**
+    
+    **Service**: {service}
+    **Version**: {version}
+    **Overall Impact Score**: {results['overall_impact']:.2f}/1.0
+    **Recommendation**: {results['recommendation'].upper()}
+    
+    **📊 Metric Analysis**:
+    """
+            
+            if results['critical_metrics']:
+                report += f"\n🚨 **Critical Issues** ({len(results['critical_metrics'])} metrics):\n"
+                for metric in results['critical_metrics']:
+                    metric_data = next(m for m in results['metric_impacts'] if m['name'] == metric)
+                    report += f"  • {metric}: {metric_data['degradation_percent']:.1f}% degradation\n"
+            
+            if results['degraded_metrics']:
+                report += f"\n⚠️ **Performance Warnings** ({len(results['degraded_metrics'])} metrics):\n"
+                for metric in results['degraded_metrics']:
+                    metric_data = next(m for m in results['metric_impacts'] if m['name'] == metric)
+                    report += f"  • {metric}: {metric_data['degradation_percent']:.1f}% degradation\n"
+            
+            healthy_metrics = len(results['metric_impacts']) - len(results['critical_metrics']) - len(results['degraded_metrics'])
+            if healthy_metrics > 0:
+                report += f"\n✅ **Healthy Metrics**: {healthy_metrics} metrics within normal ranges\n"
+            
+            # Add recommendations
+            if results['recommendation'] == 'rollback':
+                report += f"""
+    🔄 **ROLLBACK RECOMMENDED**
+    Critical performance degradation detected. Consider rolling back to previous version.
+    
+    **Next Steps**:
+    1. Investigate critical metrics immediately
+    2. Consider emergency rollback if issues persist
+    3. Review deployment logs and configuration changes
+    """
+            elif results['recommendation'] == 'investigate':
+                report += f"""
+    🔍 **INVESTIGATION REQUIRED**
+    Multiple metrics showing degradation. Monitor closely and investigate root causes.
+    
+    **Next Steps**:
+    1. Monitor degraded metrics for 30 minutes
+    2. Check service logs for errors
+    3. Validate configuration changes
+    """
+            else:
+                report += f"""
+    ✅ **DEPLOYMENT SUCCESSFUL**
+    All metrics within acceptable ranges. Continue monitoring.
+    
+    **Next Steps**:
+    1. Continue normal monitoring
+    2. Validate feature functionality
+    3. Monitor user feedback
+    """
+            
+            report += f"""
+    📈 **Dashboard**: {self.grafana_url}/d/gethome-business-intelligence
+    🔗 **Detailed Metrics**: {self.grafana_url}/d/gethome-deployment-impact
+    """
+            
+            return report
+        
+        def track_deployment(self, service: str, version: str):
+            """Main deployment tracking workflow"""
+            logger.info(f"Starting deployment tracking for {service} v{version}")
+            
+            # Record deployment event
+            self.deployment_events.labels(service=service, status='started').inc()
+            
+            # Send pre-deployment notification
+            pre_message = (
+                f"🚀 **Deployment Started**: GetHome {service} v{version}\n"
+                f"Establishing baseline metrics and monitoring deployment impact..."
+            )
+            self.send_slack_notification(
+                pre_message, 
+                self.config['alerts']['deployment_channel']
+            )
+            
+            try:
+                # Establish baseline
+                baseline_metrics = self.establish_baseline()
+                
+                # Monitor post-deployment impact
+                results = self.monitor_post_deployment(baseline_metrics, service, version)
+                
+                # Generate and send report
+                report = self.generate_deployment_report(results)
+                
+                # Determine notification channel and status
+                if results['recommendation'] == 'rollback':
+                    channel = self.config['alerts']['critical_channel']
+                    status = 'critical'
+                elif results['recommendation'] == 'investigate':
+                    channel = self.config['alerts']['deployment_channel']
+                    status = 'warning'
+                else:
+                    channel = self.config['alerts']['deployment_channel']
+                    status = 'success'
+                
+                self.send_slack_notification(report, channel)
+                self.deployment_events.labels(service=service, status=status).inc()
+                
+                logger.info(f"Deployment tracking completed for {service} v{version}: {status}")
+                
+            except Exception as e:
+                error_message = (
+                    f"🚨 **Deployment Tracking Error**: GetHome {service} v{version}\n"
+                    f"Failed to track deployment impact: {str(e)}\n"
+                    f"Manual monitoring required."
+                )
+                self.send_slack_notification(
+                    error_message, 
+                    self.config['alerts']['critical_channel']
+                )
+                self.deployment_events.labels(service=service, status='error').inc()
+                logger.error(f"Deployment tracking failed: {e}")
+        
+        def start_monitoring(self):
+            """Start the deployment monitoring service"""
+            # Start Prometheus metrics server
+            start_http_server(8091)
+            logger.info("Deployment tracker metrics server started on port 8091")
+            
+            # In a real implementation, this would listen for deployment events
+            # For now, we'll simulate periodic checking
+            while True:
+                try:
+                    # Check for new deployments (would be implemented with k8s events)
+                    time.sleep(60)
+                    
+                except KeyboardInterrupt:
+                    logger.info("Deployment tracker stopped")
+                    break
+                except Exception as e:
+                    logger.error(f"Error in deployment monitoring: {e}")
+                    time.sleep(60)
+    
+    if __name__ == "__main__":
+        tracker = DeploymentTracker()
+        tracker.start_monitoring()
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deployment-tracker
+  namespace: {{ .Values.namespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deployment-tracker
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deployment-tracker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: deployment-tracker
+subjects:
+- kind: ServiceAccount
+  name: deployment-tracker
+  namespace: {{ .Values.namespace }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deployment-tracker
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: deployment-tracker
+spec:
+  selector:
+    app: deployment-tracker
+  ports:
+  - name: metrics
+    port: 8091
+    targetPort: 8091 

@@ -50,6 +50,6 @@ public class RouteResponse {
         private double distance;
         private int duration;
         private String instructions;
-        private List<Double[]> coordinates; // [[lat, lng], [lat, lng], ...]
+        private List<Location> coordinates; // List of Location objects with latitude/longitude
     }
 } 

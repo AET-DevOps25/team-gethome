@@ -55,28 +55,19 @@ public class SmsService {
     }
 
     private String createEmergencySmsContent(EmergencyNotification notification, UserManagementClient.EmergencyContact contact) {
+        String googleMapsLink = notification.getMetadata() != null ? 
+            (String) notification.getMetadata().get("googleMapsLink") : 
+            String.format("https://www.google.com/maps?q=%.6f,%.6f", notification.getLatitude(), notification.getLongitude());
+            
         StringBuilder content = new StringBuilder();
         content.append("🚨 EMERGENCY ALERT 🚨\n\n");
-        content.append("User: ").append(notification.getUserId()).append("\n");
-        content.append("Type: ").append(notification.getEmergencyType()).append("\n");
-        
-        if (notification.getReason() != null) {
-            content.append("Reason: ").append(notification.getReason()).append("\n");
-        }
-        
-        content.append("Location: ").append(notification.getLatitude()).append(", ").append(notification.getLongitude()).append("\n");
-        
-        if (notification.getLocation() != null) {
-            content.append("Address: ").append(notification.getLocation()).append("\n");
-        }
-        
-        content.append("Time: ").append(notification.getTriggeredAt().format(DateTimeFormatter.ofPattern("MM/dd HH:mm"))).append("\n\n");
-        
-        if (notification.getMetadata().get("message") != null) {
-            content.append("Message: ").append(notification.getMetadata().get("message")).append("\n\n");
-        }
-        
-        content.append("Please respond immediately!");
+        content.append("Hi ").append(contact.name()).append(",\n\n");
+        content.append("A GetHome user needs immediate help!\n\n");
+        content.append("📍 Location: ").append(notification.getLocation()).append("\n");
+        content.append("🗺️ Live Map: ").append(googleMapsLink).append("\n");
+        content.append("⏰ Time: ").append(notification.getTriggeredAt().format(DateTimeFormatter.ofPattern("MMM dd, HH:mm"))).append("\n");
+        content.append("📝 Reason: ").append(notification.getReason()).append("\n\n");
+        content.append("⚠️ Please respond immediately or call emergency services if needed!");
         
         return content.toString();
     }
@@ -120,5 +111,52 @@ public class SmsService {
     public String sendTestSms(String toPhoneNumber) {
         String message = "GetHome SMS test message. If you receive this, SMS notifications are working correctly!";
         return sendCustomSms(toPhoneNumber, message);
+    }
+
+    /**
+     * Send emergency SMS to a contact (overloaded method for EmergencyNotificationService)
+     */
+    public String sendEmergencySMS(String contact, EmergencyNotification notification) {
+        try {
+            log.info("Sending emergency SMS to contact: {}", contact);
+            
+            // Initialize Twilio
+            Twilio.init(accountSid, authToken);
+            
+            // Create SMS content for contact
+            String smsContent = createEmergencySmsContentForContact(contact, notification);
+            
+            // Send SMS
+            Message message = Message.creator(
+                new PhoneNumber(contact),
+                new PhoneNumber(fromPhoneNumber),
+                smsContent
+            ).create();
+            
+            log.info("Emergency SMS sent successfully to {} with SID: {}", contact, message.getSid());
+            
+            return message.getSid();
+            
+        } catch (Exception e) {
+            log.error("Failed to send emergency SMS to: {}", contact, e);
+            throw new RuntimeException("SMS sending failed", e);
+        }
+    }
+
+    private String createEmergencySmsContentForContact(String contact, EmergencyNotification notification) {
+        String googleMapsLink = String.format("https://www.google.com/maps?q=%.6f,%.6f", 
+                notification.getLatitude(), notification.getLongitude());
+            
+        StringBuilder content = new StringBuilder();
+        content.append("🚨 EMERGENCY ALERT 🚨\n\n");
+        content.append("Hi,\n\n");
+        content.append("A GetHome user needs immediate help!\n\n");
+        content.append("📍 Location: ").append(notification.getLocation()).append("\n");
+        content.append("🗺️ Live Map: ").append(googleMapsLink).append("\n");
+        content.append("⏰ Time: ").append(notification.getTriggeredAt()).append("\n");
+        content.append("📝 Reason: ").append(notification.getReason()).append("\n\n");
+        content.append("⚠️ Please respond immediately or call emergency services if needed!");
+        
+        return content.toString();
     }
 } 

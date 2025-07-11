@@ -27,6 +27,26 @@ public class UserManagementService {
     private final ProfilePictureGenerator profilePictureGenerator;
     private static final Logger logger = LoggerFactory.getLogger(UserManagementService.class);
 
+    private Map<String, Object> convertPreferencesToMap(Preferences preferences) {
+        if (preferences == null) {
+            return null;
+        }
+        
+        Map<String, Object> prefMap = new java.util.HashMap<>();
+        prefMap.put("shareLocation", preferences.isShareLocation());
+        prefMap.put("notifyOnDelay", preferences.isNotifyOnDelay());
+        prefMap.put("autoNotifyContacts", preferences.isAutoNotifyContacts());
+        prefMap.put("checkInInterval", preferences.getCheckInInterval());
+        prefMap.put("enableSOS", preferences.isEnableSOS());
+        
+        // Add any additional preferences if they exist
+        if (preferences.getPreferences() != null) {
+            prefMap.putAll(preferences.getPreferences());
+        }
+        
+        return prefMap;
+    }
+
     public UserProfileResponse getUserProfile(String userId) {
         logger.info("Getting user profile for userId: {}", userId);
         
@@ -70,7 +90,7 @@ public class UserManagementService {
             .alias(profile.getAlias())
             .gender(profile.getGender())
             .ageGroup(profile.getAgeGroup())
-            .preferences(profile.getPreferences() != null ? profile.getPreferences().getPreferences() : null)
+            .preferences(convertPreferencesToMap(profile.getPreferences()))
             .preferredContactMethod(profile.getPreferredContactMethod())
             .phoneNr(profile.getPhoneNr())
             .profilePictureUrl(profile.getProfilePictureUrl())
@@ -113,6 +133,23 @@ public class UserManagementService {
             
         profile = userProfileRepository.save(profile);
         logger.info("User profile created successfully for userId: {}", request.getId());
+
+        // Save emergency contacts if provided
+        if (request.getEmergencyContacts() != null && !request.getEmergencyContacts().isEmpty()) {
+            List<EmergencyContact> contacts = request.getEmergencyContacts().stream()
+                .map(dto -> EmergencyContact.builder()
+                    .requesterId(request.getId())
+                    .contactUserId(dto.getEmail())
+                    .name(dto.getName())
+                    .email(dto.getEmail())
+                    .phone(dto.getPhone())
+                    .preferredMethod(dto.getPreferredMethod())
+                    .status(RequestStatus.ACCEPTED)
+                    .build())
+                .collect(Collectors.toList());
+            emergencyContactRepository.saveAll(contacts);
+            logger.info("Saved {} emergency contacts for user {}", contacts.size(), request.getId());
+        }
         
         return UserProfileResponse.builder()
             .id(profile.getId())
@@ -121,7 +158,7 @@ public class UserManagementService {
             .alias(profile.getAlias())
             .gender(profile.getGender())
             .ageGroup(profile.getAgeGroup())
-            .preferences(profile.getPreferences() != null ? profile.getPreferences().getPreferences() : null)
+            .preferences(convertPreferencesToMap(profile.getPreferences()))
             .preferredContactMethod(profile.getPreferredContactMethod())
             .phoneNr(profile.getPhoneNr())
             .profilePictureUrl(profile.getProfilePictureUrl())
@@ -180,6 +217,10 @@ public class UserManagementService {
         profile = userProfileRepository.save(profile);
         logger.info("User profile updated successfully for userId: {}", userId);
 
+        // Get the auth user for email
+        AuthUser authUser = authUserRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found in auth service"));
+
         // Get the updated emergency contacts
         List<EmergencyContact> updatedEmergencyContacts = emergencyContactRepository.findByRequesterIdAndStatus(userId, RequestStatus.ACCEPTED);
         List<EmergencyContactDTO> updatedEmergencyContactDTOs = updatedEmergencyContacts.stream()
@@ -195,10 +236,11 @@ public class UserManagementService {
         return UserProfileResponse.builder()
             .id(profile.getId())
             .userId(profile.getUserId())
+            .email(authUser.getEmail())
             .alias(profile.getAlias())
             .gender(profile.getGender())
             .ageGroup(profile.getAgeGroup())
-            .preferences(profile.getPreferences() != null ? profile.getPreferences().getPreferences() : null)
+            .preferences(convertPreferencesToMap(profile.getPreferences()))
             .preferredContactMethod(profile.getPreferredContactMethod())
             .phoneNr(profile.getPhoneNr())
             .profilePictureUrl(profile.getProfilePictureUrl())

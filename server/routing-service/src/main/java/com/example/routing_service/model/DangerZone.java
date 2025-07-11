@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.index.GeoSpatialIndexType;
 import org.springframework.data.mongodb.core.index.GeoSpatialIndexed;
+import org.springframework.data.mongodb.core.geo.GeoJsonPoint;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,21 +31,12 @@ public class DangerZone {
     private List<String> tags; // e.g., ["park", "alley", "poor_lighting"]
     
     @GeoSpatialIndexed(type = GeoSpatialIndexType.GEO_2DSPHERE)
-    private Location location;
+    private GeoJsonPoint location;
     
     private int reportCount;
     private List<String> reportedByUsers;
     
     public enum DangerLevel {
         LOW, MEDIUM, HIGH, CRITICAL
-    }
-    
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Location {
-        private String type = "Point";
-        private double[] coordinates; // [longitude, latitude]
     }
 } 

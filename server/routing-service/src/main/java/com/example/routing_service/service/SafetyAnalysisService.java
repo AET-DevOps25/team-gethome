@@ -57,11 +57,11 @@ public class SafetyAnalysisService {
 
         // Calculate distance from danger zone to each coordinate in the segment
         if (segment.getCoordinates() != null) {
-            for (Double[] coordinate : segment.getCoordinates()) {
+            for (Route.Location coordinate : segment.getCoordinates()) {
                 double distance = calculateDistance(
-                    coordinate[1], coordinate[0], // lat, lng
-                    dangerZone.getLocation().getCoordinates()[1], 
-                    dangerZone.getLocation().getCoordinates()[0]
+                    coordinate.getLatitude(), coordinate.getLongitude(), // lat, lng
+                    dangerZone.getLocation().getY(), // latitude
+                    dangerZone.getLocation().getX()  // longitude
                 );
                 minDistance = Math.min(minDistance, distance);
             }

@@ -188,6 +188,7 @@ class UserManagementServiceTest {
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(testProfile));
         when(userProfileRepository.save(any(com.usermanagement_service.model.UserProfile.class)))
             .thenReturn(testProfile);
+        when(authUserRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(emergencyContactRepository.findByRequesterIdAndStatus(userId, RequestStatus.ACCEPTED))
             .thenReturn(java.util.List.of());
 

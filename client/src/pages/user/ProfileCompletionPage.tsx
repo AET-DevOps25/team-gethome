@@ -123,6 +123,8 @@ const ProfileCompletionPage: React.FC = () => {
                 );
             case 3:
                 return true; // Preferences are pre-filled
+            case 4:
+                return true; // Review step is always valid
             default:
                 return false;
         }

@@ -27,4 +27,9 @@ public interface EmergencyNotificationRepository extends MongoRepository<Emergen
     
     @Query("{'contactNotifications.contactId': ?0}")
     List<EmergencyNotification> findByContactId(String contactId);
+    
+    @Query("{'userId': ?0, 'triggeredAt': {$gte: ?1}}")
+    List<EmergencyNotification> findByUserIdAndTriggeredAtAfter(String userId, LocalDateTime after);
+    
+    List<EmergencyNotification> findByStatusIn(List<EmergencyNotification.NotificationStatus> statuses);
 } 

@@ -47,7 +47,7 @@ class EmergencyNotificationServiceTest {
     private EmergencyNotificationService emergencyNotificationService;
 
     private EmergencyNotificationRequest request;
-    private UserManagementClient.EmergencyContactsResponse contactsResponse;
+    private List<UserManagementClient.EmergencyContact> emergencyContacts;
     private EmergencyNotification mockNotification;
 
     @BeforeEach
@@ -63,12 +63,9 @@ class EmergencyNotificationServiceTest {
             .emergencyContactIds(Arrays.asList("contact-1", "contact-2"))
             .build();
 
-        contactsResponse = new UserManagementClient.EmergencyContactsResponse(
-            "test-user",
-            Arrays.asList(
-                new UserManagementClient.EmergencyContact("contact-1", "John Doe", "john@example.com", "+1234567890", "EMAIL"),
-                new UserManagementClient.EmergencyContact("contact-2", "Jane Smith", "jane@example.com", "+0987654321", "SMS")
-            )
+        emergencyContacts = Arrays.asList(
+            new UserManagementClient.EmergencyContact("contact-1", "John Doe", "john@example.com", "+1234567890", "EMAIL"),
+            new UserManagementClient.EmergencyContact("contact-2", "Jane Smith", "jane@example.com", "+0987654321", "SMS")
         );
 
         // Create contact notifications for the mock
@@ -114,8 +111,8 @@ class EmergencyNotificationServiceTest {
     @Test
     void sendEmergencyNotification_Success() {
         // Given
-        when(userManagementClient.getEmergencyContacts(anyString(), anyString()))
-            .thenReturn(contactsResponse);
+        when(userManagementClient.getEmergencyContacts(anyString()))
+            .thenReturn(emergencyContacts);
         when(emergencyNotificationRepository.save(any(EmergencyNotification.class)))
             .thenReturn(mockNotification);
         when(emailService.sendEmergencyEmail(any(), any()))
@@ -125,7 +122,7 @@ class EmergencyNotificationServiceTest {
 
         // Calculate expected log count
         int expectedLogCount = 0;
-        for (UserManagementClient.EmergencyContact contact : contactsResponse.emergencyContacts()) {
+        for (UserManagementClient.EmergencyContact contact : emergencyContacts) {
             String method = contact.preferredMethod().toUpperCase();
             if ("BOTH".equals(method)) {
                 expectedLogCount += 2;
@@ -149,10 +146,8 @@ class EmergencyNotificationServiceTest {
     @Test
     void sendEmergencyNotification_NoContacts() {
         // Given
-        UserManagementClient.EmergencyContactsResponse emptyResponse = 
-            new UserManagementClient.EmergencyContactsResponse("test-user", Arrays.asList());
-        when(userManagementClient.getEmergencyContacts(anyString(), anyString()))
-            .thenReturn(emptyResponse);
+        when(userManagementClient.getEmergencyContacts(anyString()))
+            .thenReturn(Arrays.asList());
 
         // When
         EmergencyNotificationResponse response = emergencyNotificationService.sendEmergencyNotification(request, "auth-token");

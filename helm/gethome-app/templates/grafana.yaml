@@ -32,7 +32,7 @@ data:
     {
       "dashboard": {
         "id": null,
-        "title": "GetHome Application Overview",
+        "title": "GetHome Overview",
         "tags": ["gethome", "overview"],
         "timezone": "browser",
         "panels": [
@@ -43,7 +43,7 @@ data:
             "targets": [
               {
                 "expr": "up{job=~\".*-service\"}",
-                "legendFormat": "{{job}}"
+                "legendFormat": "{{`{{job}}`}}"
               }
             ],
             "fieldConfig": {
@@ -67,7 +67,7 @@ data:
             "targets": [
               {
                 "expr": "rate(http_requests_total[5m])",
-                "legendFormat": "{{job}} - {{method}} {{path}}"
+                "legendFormat": "{{`{{job}}`}} - {{`{{method}}`}} {{`{{path}}`}}"
               }
             ]
           },
@@ -78,7 +78,7 @@ data:
             "targets": [
               {
                 "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
-                "legendFormat": "{{job}} - 95th percentile"
+                "legendFormat": "{{`{{job}}`}} - 95th percentile"
               }
             ]
           },
@@ -89,7 +89,7 @@ data:
             "targets": [
               {
                 "expr": "rate(http_requests_total{status=~\"4..|5..\"}[5m])",
-                "legendFormat": "{{job}} - {{status}}"
+                "legendFormat": "{{`{{job}}`}} - {{`{{status}}`}}"
               }
             ]
           },
@@ -100,7 +100,7 @@ data:
             "targets": [
               {
                 "expr": "process_resident_memory_bytes / 1024 / 1024",
-                "legendFormat": "{{job}} - MB"
+                "legendFormat": "{{`{{job}}`}} - MB"
               }
             ]
           },
@@ -111,7 +111,7 @@ data:
             "targets": [
               {
                 "expr": "rate(process_cpu_seconds_total[5m]) * 100",
-                "legendFormat": "{{job}} - %"
+                "legendFormat": "{{`{{job}}`}} - %"
               }
             ]
           }
@@ -220,7 +220,7 @@ data:
             "targets": [
               {
                 "expr": "kube_pod_status_phase",
-                "legendFormat": "{{pod}} - {{phase}}"
+                "legendFormat": "{{`{{pod}}`}} - {{`{{phase}}`}}"
               }
             ]
           },
@@ -231,7 +231,7 @@ data:
             "targets": [
               {
                 "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-                "legendFormat": "{{instance}}"
+                "legendFormat": "{{`{{instance}}`}}"
               }
             ]
           },
@@ -242,18 +242,18 @@ data:
             "targets": [
               {
                 "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
-                "legendFormat": "{{instance}}"
+                "legendFormat": "{{`{{instance}}`}}"
               }
             ]
           },
           {
             "id": 4,
-            "title": "MongoDB Connections",
+            "title": "Disk Usage",
             "type": "graph",
             "targets": [
               {
-                "expr": "mongodb_connections",
-                "legendFormat": "MongoDB connections"
+                "expr": "(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100",
+                "legendFormat": "{{`{{instance}}`}} - {{`{{mountpoint}}`}}"
               }
             ]
           }

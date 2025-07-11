@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import BottomTabBar from '../../components/BottomTabBar';
 import { userManagementService } from '../../services/userManagementService';
 import { authService } from '../../services/authService';
+import { safetyAnalyticsService, SafetyAnalytics, JourneyHistory } from '../../services/safetyAnalyticsService';
 import { UserProfile } from '../../types/user';
 import {
     Box,
@@ -36,33 +37,12 @@ import {
     Speed
 } from '@mui/icons-material';
 
-interface SafetyReport {
-    totalJourneys: number;
-    safeJourneys: number;
-    emergencyTriggers: number;
-    dangerZonesEncountered: number;
-    averageJourneyTime: number;
-    safetyScore: number;
-    lastUpdated: Date;
-}
-
-interface JourneyHistory {
-    id: string;
-    startLocation: string;
-    endLocation: string;
-    startTime: Date;
-    endTime: Date;
-    safetyStatus: 'safe' | 'warning' | 'danger';
-    duration: number;
-    dangerZones: number;
-}
-
 const ReportsPage: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState(3);
-    const [safetyReport, setSafetyReport] = useState<SafetyReport>({
+    const [safetyReport, setSafetyReport] = useState<SafetyAnalytics>({
         totalJourneys: 0,
         safeJourneys: 0,
         emergencyTriggers: 0,
@@ -73,6 +53,7 @@ const ReportsPage: React.FC = () => {
     });
     const [recentJourneys, setRecentJourneys] = useState<JourneyHistory[]>([]);
     const [safetyTips, setSafetyTips] = useState<string[]>([]);
+    const [dataSource, setDataSource] = useState<'real' | 'fallback'>('fallback');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -85,15 +66,17 @@ const ReportsPage: React.FC = () => {
                     setLoading(false);
                     return;
                 }
-                const data = await userManagementService.getUserProfile(currentUser.id);
-                setUser(data as UserProfile);
+                const userData = await userManagementService.getUserProfile(currentUser.id);
+                setUser(userData as UserProfile);
                 
-                // Generate mock safety report (in real app, this would come from backend)
-                generateSafetyReport();
-                generateRecentJourneys();
-                generateSafetyTips();
+                // Fetch real safety analytics and journey data
+                await loadSafetyData();
+                
             } catch (err) {
+                console.error('Error loading user data:', err);
                 setError('Could not load user data.');
+                // Load fallback data even if user data fails
+                await loadFallbackData();
             } finally {
                 setLoading(false);
             }
@@ -101,66 +84,52 @@ const ReportsPage: React.FC = () => {
         fetchData();
     }, []);
 
-    const generateSafetyReport = () => {
-        // Mock data - in real app this would come from backend analytics
-        const mockReport: SafetyReport = {
-            totalJourneys: 24,
-            safeJourneys: 22,
-            emergencyTriggers: 1,
-            dangerZonesEncountered: 3,
-            averageJourneyTime: 25,
-            safetyScore: 92,
-            lastUpdated: new Date()
-        };
-        setSafetyReport(mockReport);
+    const loadSafetyData = async () => {
+        try {
+            console.log('Loading real safety analytics...');
+            
+            // Load safety analytics
+            const analytics = await safetyAnalyticsService.generateSafetyAnalytics();
+            setSafetyReport(analytics);
+            
+            // Load journey history
+            const journeys = await safetyAnalyticsService.generateJourneyHistory();
+            setRecentJourneys(journeys);
+            
+            // Generate personalized safety tips
+            const tips = safetyAnalyticsService.generateSafetyTips(analytics);
+            setSafetyTips(tips);
+            
+            // Check if we got real data or fallback data
+            const routes = await safetyAnalyticsService.getUserRoutes();
+            setDataSource(routes.length > 0 ? 'real' : 'fallback');
+            
+            console.log('Safety analytics loaded successfully:', { analytics, journeys: journeys.length, dataSource: routes.length > 0 ? 'real' : 'fallback' });
+            
+        } catch (error) {
+            console.error('Error loading safety data:', error);
+            await loadFallbackData();
+        }
     };
 
-    const generateRecentJourneys = () => {
-        // Mock journey history
-        const mockJourneys: JourneyHistory[] = [
-            {
-                id: '1',
-                startLocation: 'Home',
-                endLocation: 'Work',
-                startTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
-                endTime: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
-                safetyStatus: 'safe',
-                duration: 30,
-                dangerZones: 0
-            },
-            {
-                id: '2',
-                startLocation: 'Work',
-                endLocation: 'Gym',
-                startTime: new Date(Date.now() - 5 * 60 * 60 * 1000),
-                endTime: new Date(Date.now() - 4.5 * 60 * 60 * 1000),
-                safetyStatus: 'warning',
-                duration: 25,
-                dangerZones: 1
-            },
-            {
-                id: '3',
-                startLocation: 'Gym',
-                endLocation: 'Home',
-                startTime: new Date(Date.now() - 8 * 60 * 60 * 1000),
-                endTime: new Date(Date.now() - 7.5 * 60 * 60 * 1000),
-                safetyStatus: 'safe',
-                duration: 28,
-                dangerZones: 0
-            }
-        ];
-        setRecentJourneys(mockJourneys);
-    };
-
-    const generateSafetyTips = () => {
-        const tips = [
-            "Your safety score is excellent! Keep up the good habits.",
-            "Consider avoiding the area around Main St after 10 PM.",
-            "You've been consistent with your check-ins - great job!",
-            "Your emergency contacts are properly configured.",
-            "Consider using the AI companion more during late-night journeys."
-        ];
-        setSafetyTips(tips);
+    const loadFallbackData = async () => {
+        console.log('Loading fallback data...');
+        try {
+            // Use service fallback methods
+            const analytics = await safetyAnalyticsService.generateSafetyAnalytics();
+            const journeys = await safetyAnalyticsService.generateJourneyHistory();
+            const tips = safetyAnalyticsService.generateSafetyTips(analytics);
+            
+            setSafetyReport(analytics);
+            setRecentJourneys(journeys);
+            setSafetyTips(tips);
+            setDataSource('fallback');
+            
+            console.log('Fallback data loaded successfully');
+        } catch (error) {
+            console.error('Error loading fallback data:', error);
+            setError('Failed to load safety data.');
+        }
     };
 
     const getSafetyStatusColor = (status: string) => {
@@ -215,13 +184,30 @@ const ReportsPage: React.FC = () => {
         );
     }
 
-    return (
-        <div className="flex flex-col min-h-screen bg-gray-50">
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-50">
             {/* Header */}
             <Box sx={{ bgcolor: 'primary.main', color: 'white', p: 2 }}>
-                <Typography variant="h6" align="center">
-                    Safety Analytics & Reports
-                </Typography>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="h6">
+                        Safety Analytics & Reports
+                    </Typography>
+                    <Chip 
+                        label={dataSource === 'real' ? 'Live Data' : 'Sample Data'}
+                        color={dataSource === 'real' ? 'success' : 'warning'}
+                        size="small"
+                        variant="filled"
+                        sx={{ 
+                            bgcolor: dataSource === 'real' ? 'rgba(46, 125, 50, 0.8)' : 'rgba(237, 108, 2, 0.8)',
+                            color: 'white'
+                        }}
+                    />
+                </Box>
+                {dataSource === 'fallback' && (
+                    <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+                        Showing sample data. Complete some journeys to see your real analytics.
+                    </Typography>
+                )}
             </Box>
 
             {/* Safety Score Overview */}
@@ -318,7 +304,10 @@ const ReportsPage: React.FC = () => {
                                     <Typography variant="body2" color="text.secondary">Safety Rate</Typography>
                                 </Box>
                                 <Typography variant="h6">
-                                    {Math.round((safetyReport.safeJourneys / safetyReport.totalJourneys) * 100)}%
+                                    {safetyReport.totalJourneys > 0 
+                                        ? `${Math.round((safetyReport.safeJourneys / safetyReport.totalJourneys) * 100)}%`
+                                        : 'N/A'
+                                    }
                                 </Typography>
                             </Grid>
                         </Grid>
@@ -430,9 +419,9 @@ const ReportsPage: React.FC = () => {
                 </Grid>
             </Box>
 
-            <BottomTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
-        </div>
-    );
+      <BottomTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+    </div>
+  );
 };
 
 export default ReportsPage;

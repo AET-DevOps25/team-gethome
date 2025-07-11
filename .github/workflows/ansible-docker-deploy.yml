@@ -12,6 +12,17 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up SSH key, run Ansible playbook, and clean up
+        env:
+          # Pass GitHub secrets as environment variables to Ansible
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          MONGO_ROOT_PASSWORD: ${{ secrets.MONGO_ROOT_PASSWORD }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTE_API_KEY: ${{ secrets.OPENROUTE_API_KEY }}
         run: |
           # Create directory and write private key file
           mkdir -p infra/ansible
