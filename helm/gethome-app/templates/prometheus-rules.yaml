@@ -19,8 +19,8 @@ data:
             labels:
               severity: critical
             annotations:
-              summary: "Service {{ $labels.job }} is down"
-              description: "Service {{ $labels.job }} has been down for more than 1 minute"
+              summary: "Service {{`{{ $labels.job }}`}} is down"
+              description: "Service {{`{{ $labels.job }}`}} has been down for more than 1 minute"
 
           # High error rate
           - alert: HighErrorRate
@@ -29,8 +29,8 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "High error rate for {{ $labels.job }}"
-              description: "Error rate is {{ $value }} errors per second for {{ $labels.job }}"
+              summary: "High error rate for {{`{{ $labels.job }}`}}"
+              description: "Error rate is {{`{{ $value }}`}} errors per second for {{`{{ $labels.job }}`}}"
 
           # High response time
           - alert: HighResponseTime
@@ -39,8 +39,8 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "High response time for {{ $labels.job }}"
-              description: "95th percentile response time is {{ $value }} seconds for {{ $labels.job }}"
+              summary: "High response time for {{`{{ $labels.job }}`}}"
+              description: "95th percentile response time is {{`{{ $value }}`}} seconds for {{`{{ $labels.job }}`}}"
 
           # High memory usage
           - alert: HighMemoryUsage
@@ -49,8 +49,8 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "High memory usage for {{ $labels.job }}"
-              description: "Memory usage is {{ $value }} MB for {{ $labels.job }}"
+              summary: "High memory usage for {{`{{ $labels.job }}`}}"
+              description: "Memory usage is {{`{{ $value }}`}} MB for {{`{{ $labels.job }}`}}"
 
           # High CPU usage
           - alert: HighCPUUsage
@@ -59,8 +59,8 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "High CPU usage for {{ $labels.job }}"
-              description: "CPU usage is {{ $value }}% for {{ $labels.job }}"
+              summary: "High CPU usage for {{`{{ $labels.job }}`}}"
+              description: "CPU usage is {{`{{ $value }}`}}% for {{`{{ $labels.job }}`}}"
 
       - name: gethome-infrastructure-alerts
         rules:
@@ -71,8 +71,8 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "Pod {{ $labels.pod }} is restarting frequently"
-              description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour"
+              summary: "Pod {{`{{ $labels.pod }}`}} is restarting frequently"
+              description: "Pod {{`{{ $labels.pod }}`}} has restarted {{`{{ $value }}`}} times in the last hour"
 
           # Node high CPU usage
           - alert: NodeHighCPUUsage
@@ -81,8 +81,8 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "High CPU usage on node {{ $labels.instance }}"
-              description: "CPU usage is {{ $value }}% on node {{ $labels.instance }}"
+              summary: "High CPU usage on node {{`{{ $labels.instance }}`}}"
+              description: "CPU usage is {{`{{ $value }}`}}% on node {{`{{ $labels.instance }}`}}"
 
           # Node high memory usage
           - alert: NodeHighMemoryUsage
@@ -91,8 +91,8 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "High memory usage on node {{ $labels.instance }}"
-              description: "Memory usage is {{ $value }}% on node {{ $labels.instance }}"
+              summary: "High memory usage on node {{`{{ $labels.instance }}`}}"
+              description: "Memory usage is {{`{{ $value }}`}}% on node {{`{{ $labels.instance }}`}}"
 
           # Disk space running low
           - alert: DiskSpaceLow
@@ -101,8 +101,8 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "Low disk space on {{ $labels.instance }}"
-              description: "Disk space is {{ $value }}% available on {{ $labels.instance }}"
+              summary: "Low disk space on {{`{{ $labels.instance }}`}}"
+              description: "Disk space is {{`{{ $value }}`}}% available on {{`{{ $labels.instance }}`}}"
 
       - name: gethome-business-alerts
         rules:
@@ -114,7 +114,7 @@ data:
               severity: warning
             annotations:
               summary: "High login failure rate"
-              description: "Login failure rate is {{ $value }} failures per second"
+              description: "Login failure rate is {{`{{ $value }}`}} failures per second"
 
           # Message service alerts
           - alert: MessageServiceDown
@@ -134,7 +134,7 @@ data:
               severity: warning
             annotations:
               summary: "AI service is responding slowly"
-              description: "AI service 95th percentile response time is {{ $value }} seconds"
+              description: "AI service 95th percentile response time is {{`{{ $value }}`}} seconds"
 
           # Database connection issues
           - alert: DatabaseConnectionIssues
@@ -144,7 +144,7 @@ data:
               severity: warning
             annotations:
               summary: "High number of database connections"
-              description: "MongoDB has {{ $value }} active connections"
+              description: "MongoDB has {{`{{ $value }}`}} active connections"
 
       - name: gethome-availability-alerts
         rules:
@@ -156,7 +156,7 @@ data:
               severity: critical
             annotations:
               summary: "Service availability is below 90%"
-              description: "Only {{ $value }}% of services are available"
+              description: "Only {{`{{ $value }}`}}% of services are available"
 
           # End-to-end health check
           - alert: EndToEndHealthCheckFailed

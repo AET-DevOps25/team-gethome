@@ -1,9 +1,22 @@
 - hosts: all
   become: true
+  vars:
+    # Environment variables for GetHome application
+    # These are passed from GitHub secrets via environment variables
+    gethome_jwt_secret: "{{ lookup('env', 'JWT_SECRET') | default(jwt_secret | default('your-secret-key-here-make-it-long-and-secure-for-production')) }}"
+    gethome_mongo_root_password: "{{ lookup('env', 'MONGO_ROOT_PASSWORD') | default(mongo_root_password | default('example')) }}"
+    gethome_email_username: "{{ lookup('env', 'EMAIL_USERNAME') | default(email_username | default('your-email@example.com')) }}"
+    gethome_email_password: "{{ lookup('env', 'EMAIL_PASSWORD') | default(email_password | default('your-email-password')) }}"
+    gethome_twilio_account_sid: "{{ lookup('env', 'TWILIO_ACCOUNT_SID') | default(twilio_account_sid | default('your-twilio-account-sid')) }}"
+    gethome_twilio_auth_token: "{{ lookup('env', 'TWILIO_AUTH_TOKEN') | default(twilio_auth_token | default('your-twilio-auth-token')) }}"
+    gethome_twilio_phone_number: "{{ lookup('env', 'TWILIO_PHONE_NUMBER') | default(twilio_phone_number | default('+1234567890')) }}"
+    gethome_openai_api_key: "{{ lookup('env', 'OPENAI_API_KEY') | default(openai_api_key | default('sk-your-openai-api-key')) }}"
+    gethome_openroute_api_key: "{{ lookup('env', 'OPENROUTE_API_KEY') | default(openroute_api_key | default('your-openroute-api-key')) }}"
+    
   tasks:
     - name: Update apt cache
       apt:
-        update_cache: yes
+        update_cache: true
         
     - name: Install dependencies
       apt:
@@ -43,7 +56,7 @@
         
     - name: Update apt again after adding Docker repo
       apt:
-        update_cache: yes
+        update_cache: true
         
     - name: Install Docker and Docker Compose plugin
       apt:
@@ -54,12 +67,12 @@
           - docker-buildx-plugin
           - docker-compose-plugin
         state: latest
-        update_cache: yes
+        update_cache: true
         
     - name: Check if Docker daemon is running
       command: systemctl is-active docker
       register: docker_status
-      ignore_errors: yes
+      ignore_errors: true
       
     - name: Show Docker service status if not running
       debug:
@@ -70,7 +83,7 @@
       shell: journalctl -xeu docker.service --no-pager -l
       register: docker_logs
       when: docker_status.rc != 0
-      ignore_errors: yes
+      ignore_errors: true
       
     - name: Show Docker logs if service failed
       debug:
@@ -81,28 +94,30 @@
       systemd:
         name: docker
         state: started
-        daemon_reload: yes
+        daemon_reload: true
       register: docker_start_result
-      ignore_errors: yes
+      ignore_errors: true
       
     - name: Enable Docker service
       systemd:
         name: docker
-        enabled: yes
+        enabled: true
       when: docker_start_result is succeeded
       
     - name: Restart Docker service if start failed
-      systemd:
-        name: docker
-        state: restarted
-        daemon_reload: yes
+      block:
+        - name: Restart Docker service
+          systemd:
+            name: docker
+            state: restarted
+            daemon_reload: true
       when: docker_start_result is failed
-      ignore_errors: yes
+      ignore_errors: true
       
     - name: Final check - Docker service status
       command: systemctl status docker --no-pager -l
       register: final_docker_status
-      ignore_errors: yes
+      ignore_errors: true
       
     - name: Show final Docker status
       debug:
@@ -111,7 +126,7 @@
     - name: Verify Docker is working
       command: docker --version
       register: docker_version
-      ignore_errors: yes
+      ignore_errors: true
       
     - name: Show Docker version
       debug:
@@ -122,14 +137,32 @@
       user:
         name: ubuntu
         groups: docker
-        append: yes
+        append: true
       when: docker_version.rc == 0
       
-    - name: Copy project files
+    - name: Create app directory
+      file:
+        path: /home/ubuntu/app
+        state: directory
+        mode: '0755'
+        owner: ubuntu
+        group: ubuntu
+      when: docker_version.rc == 0
+      
+    - name: Copy project files (excluding sensitive files)
       copy:
         src: ../../
         dest: /home/ubuntu/app/
         mode: '0755'
+        owner: ubuntu
+        group: ubuntu
+      when: docker_version.rc == 0
+      
+    - name: Create .env file with actual credentials
+      template:
+        src: env.j2
+        dest: /home/ubuntu/app/.env
+        mode: '0600'
         owner: ubuntu
         group: ubuntu
       when: docker_version.rc == 0
@@ -141,4 +174,46 @@
       args:
         executable: /bin/bash
       become_user: ubuntu
+      when: docker_version.rc == 0
+      
+    - name: Wait for services to be ready
+      wait_for:
+        port: "{{ item }}"
+        host: localhost
+        delay: 10
+        timeout: 300
+      loop:
+        - 3000  # React client
+        - 8081  # Auth service
+        - 8082  # Message service
+        - 8083  # Routing service
+        - 8084  # User management service
+        - 8085  # AI service
+      when: docker_version.rc == 0
+      
+    - name: Verify deployment
+      uri:
+        url: "http://localhost:{{ item }}/health"
+        method: GET
+        status_code: 200
+      loop:
+        - 8081  # Auth service
+        - 8082  # Message service
+        - 8083  # Routing service
+        - 8084  # User management service
+        - 8085  # AI service
+      when: docker_version.rc == 0
+      ignore_errors: true
+      
+    - name: Show deployment status
+      debug:
+        msg: |
+          GetHome application deployed successfully!
+          Services are available at:
+          - Frontend: http://{{ ansible_host }}:3000
+          - Auth Service: http://{{ ansible_host }}:8081
+          - Message Service: http://{{ ansible_host }}:8082
+          - Routing Service: http://{{ ansible_host }}:8083
+          - User Management Service: http://{{ ansible_host }}:8084
+          - AI Service: http://{{ ansible_host }}:8085
       when: docker_version.rc == 0
