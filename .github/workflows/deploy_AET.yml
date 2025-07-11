@@ -501,9 +501,10 @@ jobs:
           --set services.message-service.image=ghcr.io/${{ env.IMAGE_NAME }}/message-service:latest \
           --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest \
           --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest \
+          --set services.gethome-metrics-exporter.image=ghcr.io/${{ env.IMAGE_NAME }}/gethome-metrics-exporter:latest \
           --set secrets.enabled=false \
           --set monitoring.deploymentTracker.enabled=false \
-          --wait --timeout=15m
+          --wait --timeout=30m
 
     - name: Verify deployment
       run: |
