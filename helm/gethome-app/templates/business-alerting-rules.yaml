@@ -32,7 +32,7 @@ data:
           summary: "🚨 CRITICAL: GetHome Safety Score Dropped Dangerously Low"
           description: |
             The average safety score for GetHome routes has dropped to {{ "{{ $value | humanizePercentage }}" }}, 
-            down from {{ with query "gethome_safety_score_average offset 1h" }}{{ . | first | value | humanizePercentage }}{{ end }} an hour ago.
+            down from {{ "{{ with query \"gethome_safety_score_average offset 1h\" }}{{ . | first | value | humanizePercentage }}{{ end }}" }} an hour ago.
             
             **Business Impact**: Users are being routed through potentially unsafe areas
             **User Safety Risk**: HIGH - Immediate intervention required
@@ -64,7 +64,7 @@ data:
             This means emergency situations are taking longer to resolve.
             
             **Life Safety Impact**: CRITICAL
-            **Current Active Emergencies**: {{ with query "gethome_active_emergencies_count" }}{{ . | first | value }}{{ end }}
+            **Current Active Emergencies**: {{ "{{ with query \"gethome_active_emergencies_count\" }}{{ . | first | value }}{{ end }}" }}
             
             **Immediate Response Required**:
             1. Check emergency notification delivery systems
@@ -122,13 +122,13 @@ data:
         annotations:
           summary: "📉 Significant User Engagement Drop"
           description: |
-            User engagement score dropped from {{ with query "gethome_user_engagement_score offset 2h" }}{{ . | first | value | humanizePercentage }}{{ end }} 
+            User engagement score dropped from {{ "{{ with query \"gethome_user_engagement_score offset 2h\" }}{{ . | first | value | humanizePercentage }}{{ end }}" }} 
             to {{ "{{ $value | humanizePercentage }}" }} in the last 2 hours.
             
             **Business Impact**: Potential user churn and reduced platform value
             **Engagement Metrics**:
-            - Routes per user: {{ with query "gethome_route_planning_frequency_per_user_per_day" }}{{ . | first | value | printf "%.2f" }}{{ end }}/day
-            - Safety conscious users: {{ with query "gethome_safety_conscious_users_percentage" }}{{ . | first | value | printf "%.1f" }}{{ end }}%
+            - Routes per user: {{ "{{ with query \"gethome_route_planning_frequency_per_user_per_day\" }}{{ . | first | value | printf \"%.2f\" }}{{ end }}" }}/day
+            - Safety conscious users: {{ "{{ with query \"gethome_safety_conscious_users_percentage\" }}{{ . | first | value | printf \"%.1f\" }}{{ end }}" }}%
             
             **Investigation Areas**:
             1. Recent app updates or feature changes
@@ -154,9 +154,9 @@ data:
             
             **Business Impact**: Reduced safety value proposition
             **Feature Adoption Rates**:
-            {{- range query "gethome_feature_adoption_rate_percentage" }}
-            - {{ .Labels.feature }}: {{ .Value | printf "%.1f" }}%
-            {{- end }}
+            {{ "{{- range query \"gethome_feature_adoption_rate_percentage\" }}" }}
+            - {{ "{{ .Labels.feature }}" }}: {{ "{{ .Value | printf \"%.1f\" }}" }}%
+            {{ "{{- end }}" }}
             
             **Improvement Actions**:
             1. Review onboarding flow for safety features
@@ -179,7 +179,7 @@ data:
           summary: "📊 User Retention Rate Declining"
           description: |
             30-day user retention rate is declining at {{ "{{ $value }}" }}% per day.
-            Current retention: {{ with query "gethome_user_retention_rate_percentage{period=\"30d\"}" }}{{ . | first | value | printf "%.1f" }}{{ end }}%
+            Current retention: {{ "{{ with query \"gethome_user_retention_rate_percentage{period=\\\"30d\\\"}\" }}{{ . | first | value | printf \"%.1f\" }}{{ end }}" }}%
             
             **Business Impact**: Potential revenue loss and reduced user base
             **Growth Metrics to Review**:
@@ -211,9 +211,9 @@ data:
             
             **Business Impact**: Reduced value proposition and community benefit
             **Safety Metrics**:
-            - Incidents prevented: {{ with query "gethome_estimated_incidents_prevented_total" }}{{ . | first | value | printf "%.0f" }}{{ end }}
-            - Distance optimized: {{ with query "gethome_total_distance_saved_kilometers" }}{{ . | first | value | printf "%.0f" }}{{ end }} km
-            - Active danger zones: {{ with query "gethome_active_danger_zones_count" }}{{ . | first | value }}{{ end }}
+            - Incidents prevented: {{ "{{ with query \"gethome_estimated_incidents_prevented_total\" }}{{ . | first | value | printf \"%.0f\" }}{{ end }}" }}
+            - Distance optimized: {{ "{{ with query \"gethome_total_distance_saved_kilometers\" }}{{ . | first | value | printf \"%.0f\" }}{{ end }}" }} km
+            - Active danger zones: {{ "{{ with query \"gethome_active_danger_zones_count\" }}{{ . | first | value }}{{ end }}" }}
             
             **Improvement Areas**:
             1. Enhance route optimization algorithms
@@ -239,9 +239,9 @@ data:
             
             **Performance Impact**: Users not receiving optimal safe routes
             **Current Metrics**:
-            - Average safety score: {{ with query "gethome_safety_score_average" }}{{ . | first | value | humanizePercentage }}{{ end }}
-            - Danger zones avoided: {{ with query "rate(gethome_danger_zones_avoided_total[1h])" }}{{ . | first | value | printf "%.1f" }}{{ end }}/hour
-            - Route calculation time: {{ with query "histogram_quantile(0.95, gethome_route_calculation_duration_seconds_bucket)" }}{{ . | first | value | humanizeDuration }}{{ end }} (95th percentile)
+            - Average safety score: {{ "{{ with query \"gethome_safety_score_average\" }}{{ . | first | value | humanizePercentage }}{{ end }}" }}
+            - Danger zones avoided: {{ "{{ with query \"rate(gethome_danger_zones_avoided_total[1h])\" }}{{ . | first | value | printf \"%.1f\" }}{{ end }}" }}/hour
+            - Route calculation time: {{ "{{ with query \"histogram_quantile(0.95, gethome_route_calculation_duration_seconds_bucket)\" }}{{ . | first | value | humanizeDuration }}{{ end }}" }} (95th percentile)
             
             **Investigation Steps**:
             1. Check OpenRoute Service API performance
@@ -272,9 +272,9 @@ data:
             
             **Business Impact**: Potential service degradation during peak times
             **Capacity Planning**:
-            - Current active users: {{ with query "gethome_active_users_count" }}{{ . | first | value }}{{ end }}
-            - Route requests/min: {{ with query "rate(gethome_route_requests_total[5m]) * 60" }}{{ . | first | value | printf "%.0f" }}{{ end }}
-            - Emergency alerts active: {{ with query "gethome_active_emergency_notifications_count" }}{{ . | first | value }}{{ end }}
+            - Current active users: {{ "{{ with query \"gethome_active_users_count\" }}{{ . | first | value }}{{ end }}" }}
+            - Route requests/min: {{ "{{ with query \"rate(gethome_route_requests_total[5m]) * 60\" }}{{ . | first | value | printf \"%.0f\" }}{{ end }}" }}
+            - Emergency alerts active: {{ "{{ with query \"gethome_active_emergency_notifications_count\" }}{{ . | first | value }}{{ end }}" }}
             
             **Proactive Actions**:
             1. Scale up routing service instances
@@ -300,9 +300,9 @@ data:
             
             **Business Impact**: Increased operational costs reduce profitability
             **Cost Analysis**:
-            - Cost per route calculation: {{ with query "gethome_cost_per_route_calculation_dollars" }}{{ . | first | value | printf "$%.4f" }}{{ end }}
-            - Monthly infrastructure spend: {{ with query "gethome_monthly_infrastructure_cost_dollars" }}{{ . | first | value | printf "$%.0f" }}{{ end }}
-            - Cost per active user: {{ with query "gethome_cost_per_active_user_dollars" }}{{ . | first | value | printf "$%.2f" }}{{ end }}
+            - Cost per route calculation: {{ "{{ with query \"gethome_cost_per_route_calculation_dollars\" }}{{ . | first | value | printf \"$%.4f\" }}{{ end }}" }}
+            - Monthly infrastructure spend: {{ "{{ with query \"gethome_monthly_infrastructure_cost_dollars\" }}{{ . | first | value | printf \"$%.0f\" }}{{ end }}" }}
+            - Cost per active user: {{ "{{ with query \"gethome_cost_per_active_user_dollars\" }}{{ . | first | value | printf \"$%.2f\" }}{{ end }}" }}
             
             **Optimization Opportunities**:
             1. Review OpenRoute Service API usage efficiency
@@ -333,9 +333,9 @@ data:
             
             **Safety Impact**: Users may not receive current safety information
             **Data Freshness Status**:
-            - Last update: {{ with query "gethome_danger_zone_last_update_timestamp" }}{{ . | first | value | humanizeTimestamp }}{{ end }}
-            - Active danger zones: {{ with query "gethome_active_danger_zones_count" }}{{ . | first | value }}{{ end }}
-            - Danger zone sources: {{ with query "gethome_danger_zone_sources_active_count" }}{{ . | first | value }}{{ end }}
+            - Last update: {{ "{{ with query \"gethome_danger_zone_last_update_timestamp\" }}{{ . | first | value | humanizeTimestamp }}{{ end }}" }}
+            - Active danger zones: {{ "{{ with query \"gethome_active_danger_zones_count\" }}{{ . | first | value }}{{ end }}" }}
+            - Danger zone sources: {{ "{{ with query \"gethome_danger_zone_sources_active_count\" }}{{ . | first | value }}{{ end }}" }}
             
             **Investigation Steps**:
             1. Check danger zone data collection services
@@ -402,8 +402,8 @@ data:
             4. Implement emergency communication protocols
             
             **Current Emergency Status**:
-            - Active emergencies: {{ with query "gethome_active_emergencies_count" }}{{ . | first | value }}{{ end }}
-            - Users in danger zones: {{ with query "gethome_users_in_danger_zones_count" }}{{ . | first | value }}{{ end }}
+            - Active emergencies: {{ "{{ with query \"gethome_active_emergencies_count\" }}{{ . | first | value }}{{ end }}" }}
+            - Users in danger zones: {{ "{{ with query \"gethome_users_in_danger_zones_count\" }}{{ . | first | value }}{{ end }}" }}
           runbook_url: "https://wiki.gethome.local/runbooks/emergency-notification-failure"
           slack_channel: "#emergency-critical"
           escalation_policy: "emergency-team-immediate"
