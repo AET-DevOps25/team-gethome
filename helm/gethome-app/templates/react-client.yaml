@@ -1,4 +1,4 @@
-{{- if .Values.services.react-client.enabled }}
+{{- if index .Values.services "react-client" "enabled" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,22 +31,22 @@ spec:
       {{- end }}
       containers:
         - name: react-client
-          image: {{ .Values.services.react-client.image }}
-          imagePullPolicy: {{ .Values.services.react-client.imagePullPolicy }}
+          image: {{ index .Values.services "react-client" "image" }}
+          imagePullPolicy: {{ index .Values.services "react-client" "imagePullPolicy" }}
           ports:
-            - containerPort: {{ .Values.services.react-client.port }}
+            - containerPort: {{ index .Values.services "react-client" "port" }}
               name: http
           {{- with .Values.containerSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.services.react-client.resources }}
+          {{- with index .Values.services "react-client" "resources" }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.services.react-client.env }}
+          {{- if index .Values.services "react-client" "env" }}
           env:
-            {{- range .Values.services.react-client.env }}
+            {{- range index .Values.services "react-client" "env" }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
@@ -54,14 +54,14 @@ spec:
           livenessProbe:
             httpGet:
               path: /
-              port: {{ .Values.services.react-client.port }}
-            initialDelaySeconds: 30
+              port: {{ index .Values.services "react-client" "port" }}
+            initialDelaySeconds: 60
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /
-              port: {{ .Values.services.react-client.port }}
-            initialDelaySeconds: 10
+              port: {{ index .Values.services "react-client" "port" }}
+            initialDelaySeconds: 30
             periodSeconds: 5
 ---
 apiVersion: v1
@@ -73,12 +73,12 @@ metadata:
     app: react-client
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
-  type: {{ .Values.services.react-client.service.type }}
+  type: {{ index .Values.services "react-client" "service" "type" }}
   selector:
     app: react-client
   ports:
-    - port: {{ .Values.services.react-client.service.port }}
-      targetPort: {{ .Values.services.react-client.service.targetPort }}
+    - port: {{ index .Values.services "react-client" "service" "port" }}
+      targetPort: {{ index .Values.services "react-client" "service" "targetPort" }}
       protocol: TCP
       name: http
 {{- end }}

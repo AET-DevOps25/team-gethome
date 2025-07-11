@@ -1,4 +1,4 @@
-{{- if .Values.services.ai-service.enabled }}
+{{- if index .Values.services "ai-service" "enabled" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,22 +31,22 @@ spec:
       {{- end }}
       containers:
         - name: ai-service
-          image: {{ .Values.services.ai-service.image }}
-          imagePullPolicy: {{ .Values.services.ai-service.imagePullPolicy }}
+          image: {{ index .Values.services "ai-service" "image" }}
+          imagePullPolicy: {{ index .Values.services "ai-service" "imagePullPolicy" }}
           ports:
-            - containerPort: {{ .Values.services.ai-service.port }}
+            - containerPort: {{ index .Values.services "ai-service" "port" }}
               name: http
           {{- with .Values.containerSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.services.ai-service.resources }}
+          {{- with index .Values.services "ai-service" "resources" }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.services.ai-service.env }}
+          {{- if index .Values.services "ai-service" "env" }}
           env:
-            {{- range .Values.services.ai-service.env }}
+            {{- range index .Values.services "ai-service" "env" }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
@@ -54,13 +54,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: {{ .Values.services.ai-service.port }}
+              port: {{ index .Values.services "ai-service" "port" }}
             initialDelaySeconds: 60
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health
-              port: {{ .Values.services.ai-service.port }}
+              port: {{ index .Values.services "ai-service" "port" }}
             initialDelaySeconds: 30
             periodSeconds: 5
 ---
@@ -73,12 +73,12 @@ metadata:
     app: ai-service
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 spec:
-  type: {{ .Values.services.ai-service.service.type }}
+  type: {{ index .Values.services "ai-service" "service" "type" }}
   selector:
     app: ai-service
   ports:
-    - port: {{ .Values.services.ai-service.service.port }}
-      targetPort: {{ .Values.services.ai-service.service.targetPort }}
+    - port: {{ index .Values.services "ai-service" "service" "port" }}
+      targetPort: {{ index .Values.services "ai-service" "service" "targetPort" }}
       protocol: TCP
       name: http
 {{- end }}
