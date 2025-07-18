@@ -444,10 +444,10 @@ jobs:
         helm repo add grafana https://grafana.github.io/helm-charts
         helm repo update
 
-    - name: Create namespace
-      run: |
-        export KUBECONFIG=kubeconfig
-        kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
+    # - name: Create namespace
+    #   run: |
+    #     export KUBECONFIG=kubeconfig
+    #     kubectl create namespace devops25-k8s-gethome --dry-run=client -o yaml | kubectl apply -f -
 
     - name: Create GitHub Container Registry secret
       run: |
