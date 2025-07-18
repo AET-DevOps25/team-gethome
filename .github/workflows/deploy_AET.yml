@@ -479,25 +479,25 @@ jobs:
     #       echo "✅ ghcr-secret already exists, skipping creation"
     #     fi
   
-    - name: Create application secrets (if not exists)
-      run: |
-        export KUBECONFIG=kubeconfig
-        if ! kubectl get secret gethome-secrets -n devops25-k8s-gethome >/dev/null 2>&1; then
-          kubectl create secret generic gethome-secrets \
-            --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
-            --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
-            --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
-            --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
-            --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
-            --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
-            --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
-            --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
-            --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
-            --namespace devops25-k8s-gethome
-          echo "✅ gethome-secrets created"
-        else
-          echo "✅ gethome-secrets already exists, skipping creation"
-        fi
+    # - name: Create application secrets (if not exists)
+    #   run: |
+    #     export KUBECONFIG=kubeconfig
+    #     if ! kubectl get secret gethome-secrets -n devops25-k8s-gethome >/dev/null 2>&1; then
+    #       kubectl create secret generic gethome-secrets \
+    #         --from-literal=jwt-secret="${{ secrets.JWT_SECRET }}" \
+    #         --from-literal=mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
+    #         --from-literal=email-username="${{ secrets.EMAIL_USERNAME }}" \
+    #         --from-literal=email-password="${{ secrets.EMAIL_PASSWORD }}" \
+    #         --from-literal=twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
+    #         --from-literal=twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
+    #         --from-literal=twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
+    #         --from-literal=openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
+    #         --from-literal=openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
+    #         --namespace devops25-k8s-gethome
+    #       echo "✅ gethome-secrets created"
+    #     else
+    #       echo "✅ gethome-secrets already exists, skipping creation"
+    #     fi
 
     # - name: Create application secrets
     #   run: |
