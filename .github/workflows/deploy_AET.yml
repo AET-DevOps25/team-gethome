@@ -519,10 +519,30 @@ jobs:
         
     #     echo "✅ Application secrets created successfully"
 
-    - name: Deploy to production
-      run: |
-        export KUBECONFIG=kubeconfig
+    # - name: Deploy to production
+    #   run: |
+    #     export KUBECONFIG=kubeconfig
         
+    #     helm upgrade --install gethome-app ./helm/gethome-app \
+    #       --namespace devops25-k8s-gethome \
+    #       --create-namespace \
+    #       -f ./helm/gethome-app/values.yaml \
+    #       --set global.environment=production \
+    #       --set global.imageRegistry=ghcr.io \
+    #       --set global.imagePullSecrets[0].name=ghcr-secret \
+    #       --set services.auth-service.image=ghcr.io/${{ env.IMAGE_NAME }}/auth-service:latest \
+    #       --set services.usermanagement-service.image=ghcr.io/${{ env.IMAGE_NAME }}/usermanagement-service:latest \
+    #       --set services.ai-service.image=ghcr.io/${{ env.IMAGE_NAME }}/ai-service:latest \
+    #       --set services.message-service.image=ghcr.io/${{ env.IMAGE_NAME }}/message-service:latest \
+    #       --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest \
+    #       --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest \
+    #       --set services.gethome-metrics-exporter.image=ghcr.io/${{ env.IMAGE_NAME }}/gethome-metrics-exporter:latest \
+    #       --set secrets.enabled=false \
+    #       --set monitoring.deploymentTracker.enabled=false \
+    #       --wait --timeout=30m
+
+    - name: Deploy with Helm (Inject Secrets)
+      run: |
         helm upgrade --install gethome-app ./helm/gethome-app \
           --namespace devops25-k8s-gethome \
           --create-namespace \
@@ -537,9 +557,23 @@ jobs:
           --set services.routing-service.image=ghcr.io/${{ env.IMAGE_NAME }}/routing-service:latest \
           --set services.react-client.image=ghcr.io/${{ env.IMAGE_NAME }}/react-client:latest \
           --set services.gethome-metrics-exporter.image=ghcr.io/${{ env.IMAGE_NAME }}/gethome-metrics-exporter:latest \
-          --set secrets.enabled=false \
+          --set secrets.enabled=true \
+          --set secrets.data.jwt-secret="${{ secrets.JWT_SECRET }}" \
+          --set secrets.data.mongo-root-username="root" \
+          --set secrets.data.mongo-root-password="${{ secrets.MONGO_ROOT_PASSWORD }}" \
+          --set secrets.data.email-host="smtp.gmail.com" \
+          --set secrets.data.email-port="587" \
+          --set secrets.data.email-username="${{ secrets.EMAIL_USERNAME }}" \
+          --set secrets.data.email-password="${{ secrets.EMAIL_PASSWORD }}" \
+          --set secrets.data.twilio-account-sid="${{ secrets.TWILIO_ACCOUNT_SID }}" \
+          --set secrets.data.twilio-auth-token="${{ secrets.TWILIO_AUTH_TOKEN }}" \
+          --set secrets.data.twilio-phone-number="${{ secrets.TWILIO_PHONE_NUMBER }}" \
+          --set secrets.data.openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
+          --set secrets.data.openroute-api-key="${{ secrets.OPENROUTE_API_KEY }}" \
+          --set secrets.data.slack-webhook-url="${{ secrets.SLACK_WEBHOOK_URL }}" \
           --set monitoring.deploymentTracker.enabled=false \
           --wait --timeout=30m
+
 
     - name: Verify deployment
       run: |
