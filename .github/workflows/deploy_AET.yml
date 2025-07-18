@@ -464,20 +464,20 @@ jobs:
         
     #     echo "✅ GitHub Container Registry secret created successfully"
 
-    - name: Create GitHub Container Registry secret (if not exists)
-      run: |
-        export KUBECONFIG=kubeconfig
-        if ! kubectl get secret ghcr-secret -n devops25-k8s-gethome >/dev/null 2>&1; then
-          kubectl create secret docker-registry ghcr-secret \
-            --docker-server=ghcr.io \
-            --docker-username=${{ github.actor }} \
-            --docker-password=${{ secrets.GITHUB_TOKEN }} \
-            --docker-email=${{ github.actor }}@users.noreply.github.com \
-            --namespace devops25-k8s-gethome
-          echo "✅ ghcr-secret created"
-        else
-          echo "✅ ghcr-secret already exists, skipping creation"
-        fi
+    # - name: Create GitHub Container Registry secret (if not exists)
+    #   run: |
+    #     export KUBECONFIG=kubeconfig
+    #     if ! kubectl get secret ghcr-secret -n devops25-k8s-gethome >/dev/null 2>&1; then
+    #       kubectl create secret docker-registry ghcr-secret \
+    #         --docker-server=ghcr.io \
+    #         --docker-username=${{ github.actor }} \
+    #         --docker-password=${{ secrets.GITHUB_TOKEN }} \
+    #         --docker-email=${{ github.actor }}@users.noreply.github.com \
+    #         --namespace devops25-k8s-gethome
+    #       echo "✅ ghcr-secret created"
+    #     else
+    #       echo "✅ ghcr-secret already exists, skipping creation"
+    #     fi
   
     - name: Create application secrets (if not exists)
       run: |
