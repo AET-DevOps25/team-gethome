@@ -263,7 +263,7 @@
       },
       "targets": [
         {
-          "expr": "rate(http_requests_total[5m])",
+          "expr": "rate(prometheus_http_requests_total[5m])",
           "format": "time_series",
           "legendFormat": "{{job}} - {{method}} {{status}}",
           "refId": "A"
@@ -312,7 +312,7 @@
       },
       "targets": [
         {
-          "expr": "jvm_threads_current",
+          "expr": "jvm_threads_live_threads",
           "format": "table",
           "instant": true,
           "legendFormat": "{{job}}",
@@ -381,7 +381,7 @@
       },
       "targets": [
         {
-          "expr": "rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])",
+          "expr": "rate(prometheus_http_request_duration_seconds_sum[5m]) / rate(prometheus_http_request_duration_seconds_count[5m])",
           "format": "time_series",
           "legendFormat": "{{job}} - {{method}} {{uri}}",
           "refId": "A"

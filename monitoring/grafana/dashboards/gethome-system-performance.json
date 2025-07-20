@@ -408,7 +408,7 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "rate(http_requests_total[5m])",
+          "expr": "rate(prometheus_http_requests_total[5m])",
           "interval": "",
           "legendFormat": "{{job}} - {{method}} {{status}}",
           "refId": "A"
@@ -492,14 +492,14 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.95, rate(prometheus_http_request_duration_seconds_bucket[5m]))",
           "interval": "",
           "legendFormat": "{{job}} - 95th percentile",
           "refId": "A"
         },
         {
           "datasource": "Prometheus",
-          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.50, rate(prometheus_http_request_duration_seconds_bucket[5m]))",
           "interval": "",
           "legendFormat": "{{job}} - 50th percentile",
           "refId": "B"

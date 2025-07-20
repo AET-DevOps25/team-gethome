@@ -511,14 +511,14 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "rate(http_requests_total{uri=~\"/auth/.*\"}[5m])",
+          "expr": "rate(prometheus_http_requests_total{uri=~\"/auth/.*\"}[5m])",
           "interval": "",
           "legendFormat": "Auth Requests - {{status}}",
           "refId": "A"
         },
         {
           "datasource": "Prometheus",
-          "expr": "rate(http_requests_total{uri=~\"/auth/.*\", status!~\"2..\"}[5m])",
+          "expr": "rate(prometheus_http_requests_total{uri=~\"/auth/.*\", status!~\"2..\"}[5m])",
           "interval": "",
           "legendFormat": "Failed Auth Requests",
           "refId": "B"
@@ -702,14 +702,14 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "rate(http_requests_total{uri=~\"/emergency/.*\"}[5m])",
+          "expr": "rate(prometheus_http_requests_total{uri=~\"/emergency/.*\"}[5m])",
           "interval": "",
           "legendFormat": "Emergency Requests",
           "refId": "A"
         },
         {
           "datasource": "Prometheus",
-          "expr": "rate(http_requests_total{uri=~\"/emergency/.*\", status=\"200\"}[5m])",
+          "expr": "rate(prometheus_http_requests_total{uri=~\"/emergency/.*\", status=\"200\"}[5m])",
           "interval": "",
           "legendFormat": "Successful Emergency Responses",
           "refId": "B"
