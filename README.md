@@ -466,35 +466,6 @@ docker stats
 docker-compose logs -f --tail=100 [service-name]
 ```
 
-## 📚 API Documentation
-
-### Swagger/OpenAPI
-Each service exposes API documentation:
-- Auth Service: http://localhost:8080/swagger-ui.html
-- User Management: http://localhost:8081/swagger-ui.html
-- Message Service: http://localhost:8082/swagger-ui.html
-- Routing Service: http://localhost:8083/swagger-ui.html
-- AI Service: http://localhost:8084/docs
-
-### Postman Collection
-Import the provided Postman collection for API testing and development.
-
-## 🤝 Contributing
-
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
-
-### Code Standards
-- Follow Java coding conventions
-- Use Python PEP 8 style
-- Follow React best practices
-- Write comprehensive tests
-- Update documentation
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -508,8 +479,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Contact the development team
 
 ### Useful Links
-- [Project Wiki](https://github.com/AET-DevOps25/team-gethome/wiki)
-- [API Documentation](https://github.com/AET-DevOps25/team-gethome/docs)
 - [Deployment Guide](https://github.com/AET-DevOps25/team-gethome/helm/gethome-app/QUICKSTART.md)
 - [Monitoring Guide](https://github.com/AET-DevOps25/team-gethome/monitoring/ADVANCED_MONITORING.md)
 
