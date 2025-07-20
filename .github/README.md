@@ -4,45 +4,49 @@ This directory contains GitHub Actions workflows for the GetHome application CI/
 
 ## Workflows Overview
 
-### 1. `deploy.yml` - Main Deployment Pipeline
+### 1. `deploy_AET.yml` - Main Deployment Pipeline
 **Triggers:**
-- Push to `main` branch → Deploy to production
-- Push to `develop` branch → Deploy to development
-- Pull requests to `main` → Build and test only
+- Push to `main` or `develop` branches (when changes to helm/, server/, client/, or workflow file)
+- Pull requests to `main` or `develop` (build and test only)
 - Manual trigger with environment selection
 
 **Jobs:**
-- **test-and-build**: Builds and tests all services, pushes Docker images
-- **deploy-development**: Deploys to development environment
-- **deploy-production**: Deploys to production environment
-- **security-scan**: Runs security vulnerability scans
-- **notify**: Sends deployment notifications
+- **test-and-build**: Builds and tests all services, pushes Docker images to GitHub Container Registry
+  - Java services: auth-service, usermanagement-service, message-service, routing-service
+  - Python services: ai-service, gethome-metrics-exporter
+  - React client: react-client
+- **deploy-development**: Deploys to development environment (commented out)
+- **deploy-production**: Deploys to production environment (commented out)
 
-### 2. `pr-validation.yml` - Pull Request Validation
+### 2. `build-containers.yml` - Container Build Pipeline
+**Triggers:**
+- Push to `main` or `develop` branches (when changes to server/ or client/)
+- Pull requests to `main` or `develop`
+- Manual trigger with service and tag selection
+
+**Jobs:**
+- **build-java-services**: Builds Java microservices (auth, usermanagement, message, routing)
+- **build-python-services**: Builds Python services (ai-service, gethome-metrics-exporter)
+- **build-react-client**: Builds React frontend application
+
+### 3. `pr-validation.yml` - Pull Request Validation
 **Triggers:**
 - Pull requests to `main` or `develop`
 - Push to `main` or `develop`
 
 **Jobs:**
-- **lint**: Code linting and formatting checks
-- **test**: Unit and integration tests
-- **security**: Security vulnerability scanning
+- **lint**: Code linting and formatting checks for all services
+- **test**: Unit and integration tests with coverage reporting
+- **security**: Security vulnerability scanning (Trivy + Snyk)
 - **build**: Docker image building (without pushing)
 - **k8s-validation**: Kubernetes manifest validation
-- **performance**: Basic performance testing
-- **comment**: Comments PR with validation results
 
-### 3. `maintenance.yml` - Scheduled Maintenance
+### 4. `ansible-docker-deploy.yml` - EC2 Deployment
 **Triggers:**
-- Weekly schedule (Sundays at 2 AM UTC)
-- Manual trigger with task selection
+- Manual trigger only
 
 **Jobs:**
-- **update-dependencies**: Updates project dependencies
-- **security-audit**: Comprehensive security scanning
-- **cleanup**: Cleans up old resources
-- **health-check**: Verifies environment health
-- **report**: Generates maintenance report
+- **deploy**: Deploys to EC2 using Ansible playbook with Docker Compose
 
 ## Setup Instructions
 
@@ -73,16 +77,34 @@ SNYK_TOKEN=<your-snyk-token>
 SLACK_WEBHOOK_URL=<your-slack-webhook-url>
 ```
 
-#### Container Registry
-The workflows use GitHub Container Registry (ghcr.io) by default. If using a different registry:
-
+#### EC2 Deployment
 ```bash
-# Docker registry credentials
-DOCKER_USERNAME=<your-docker-username>
-DOCKER_PASSWORD=<your-docker-password>
+# EC2 SSH private key
+EC2_SSH_PRIVATE_KEY=<your-ec2-private-key>
+
+# EC2 public IP
+PUBLIC_IP=<your-ec2-public-ip>
+
+# Application secrets
+JWT_SECRET=<your-jwt-secret>
+MONGO_ROOT_PASSWORD=<your-mongo-password>
+EMAIL_USERNAME=<your-email-username>
+EMAIL_PASSWORD=<your-email-password>
+TWILIO_ACCOUNT_SID=<your-twilio-sid>
+TWILIO_AUTH_TOKEN=<your-twilio-token>
+TWILIO_PHONE_NUMBER=<your-twilio-phone>
+OPENAI_API_KEY=<your-openai-key>
+OPENROUTE_API_KEY=<your-openroute-key>
 ```
 
-### 2. Environment Protection Rules
+### 2. Container Registry
+
+The workflows use GitHub Container Registry (ghcr.io) by default:
+- Registry: `ghcr.io`
+- Image prefix: `aet-devops25/team-gethome`
+- Authentication: Uses `GITHUB_TOKEN` automatically
+
+### 3. Environment Protection Rules
 
 Set up environment protection rules in GitHub:
 
@@ -96,7 +118,7 @@ Set up environment protection rules in GitHub:
 - **Wait timer**: 5 minutes
 - **Deployment branches**: `main`
 
-### 3. Branch Protection Rules
+### 4. Branch Protection Rules
 
 Configure branch protection for `main` and `develop`:
 
@@ -106,7 +128,7 @@ Configure branch protection for `main` and `develop`:
 - **Require conversation resolution before merging**
 - **Include administrators**
 
-### 4. Required Status Checks
+### 5. Required Status Checks
 
 Add these status checks to branch protection:
 - `test-and-build`
@@ -133,10 +155,9 @@ Add these status checks to branch protection:
 ### Manual Deployments
 
 1. Go to **Actions** tab in GitHub
-2. Select **Deploy GetHome Application**
+2. Select the desired workflow
 3. Click **Run workflow**
-4. Choose environment and namespace
-5. Click **Run workflow**
+4. Choose parameters and click **Run workflow**
 
 ### Pull Request Process
 
@@ -147,15 +168,30 @@ Add these status checks to branch protection:
 5. Get code review approval
 6. Merge to `develop`
 
+## Services Overview
+
+### Java Microservices
+- **auth-service**: Authentication and authorization
+- **usermanagement-service**: User profile and management
+- **message-service**: Messaging and notifications
+- **routing-service**: Route planning and optimization
+
+### Python Services
+- **ai-service**: AI and machine learning features
+- **gethome-metrics-exporter**: Custom Prometheus exporter for business metrics
+
+### Frontend
+- **react-client**: React-based web application
+
 ## Customization
 
 ### Adding New Services
 
-1. Update the matrix in `deploy.yml`:
+1. Update the matrix in workflows:
    ```yaml
    strategy:
      matrix:
-       service: [auth-service, usermanagement-service, emergency-service, routing-service, ai-service, react-client, new-service]
+       service: [auth-service, usermanagement-service, message-service, routing-service, ai-service, gethome-metrics-exporter, react-client, new-service]
    ```
 
 2. Add service-specific build steps if needed
